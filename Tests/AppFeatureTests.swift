@@ -1,7 +1,7 @@
 import ComposableArchitecture
 import Testing
 
-@testable import AppFeature
+@testable import GitHubSearch
 
 @MainActor
 struct AppFeatureTests {
