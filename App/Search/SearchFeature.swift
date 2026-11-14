@@ -1,31 +1,57 @@
 import ComposableArchitecture
+import Foundation
 
 @Reducer
 struct SearchFeature {
+  /// 저장하고 보여주는 최근 검색어의 최대 개수
+  static let maxRecentSearchCount = 10
+
   @ObservableState
   struct State: Equatable {
     /// 검색창에 입력 중인 검색어
     var query: String
     /// 검색을 실행한 뒤의 결과 영역. `nil` 이면 결과를 보여주지 않는다.
     var result: SearchResultFeature.State?
+    /// 최근 검색어. 날짜 내림차순이고 최대 `maxRecentSearchCount` 개다.
+    var recentSearches: [RecentSearch]
 
-    init(query: String = "", result: SearchResultFeature.State? = nil) {
+    init(
+      query: String = "",
+      result: SearchResultFeature.State? = nil,
+      recentSearches: [RecentSearch] = []
+    ) {
       self.query = query
       self.result = result
+      self.recentSearches = recentSearches
     }
   }
 
   enum Action {
+    case viewAppeared
     case queryChanged(String)
     case searchSubmitted
+    case recentSearchTapped(RecentSearch)
+    case recentSearchDeleteTapped(RecentSearch)
+    case recentSearchesClearTapped
     case result(SearchResultFeature.Action)
   }
+
+  @Dependency(\.date.now) var now
+  @Dependency(\.recentSearchClient) var recentSearchClient
 
   init() {}
 
   var body: some ReducerOf<Self> {
     Reduce { state, action in
       switch action {
+      case .viewAppeared:
+        state.recentSearches = Array(
+          recentSearchClient.load()
+            .sorted { $0.searchedAt > $1.searchedAt }
+            .prefix(Self.maxRecentSearchCount)
+        )
+        return .none
+
       case let .queryChanged(query):
         state.query = query
         // 결과는 실행한 검색어에 대한 것이다. 검색어를 지우거나("취소" 포함) 고치면 결과 영역을 닫는다.
@@ -35,10 +61,19 @@ struct SearchFeature {
         return .none
 
       case .searchSubmitted:
-        let keyword = state.query.trimmed
-        guard !keyword.isEmpty else { return .none }
-        state.result = SearchResultFeature.State(keyword: keyword)
-        return .none
+        return search(state.query, state: &state)
+
+      case let .recentSearchTapped(recentSearch):
+        state.query = recentSearch.keyword
+        return search(recentSearch.keyword, state: &state)
+
+      case let .recentSearchDeleteTapped(recentSearch):
+        state.recentSearches.removeAll { $0.id == recentSearch.id }
+        return save(state.recentSearches)
+
+      case .recentSearchesClearTapped:
+        state.recentSearches = []
+        return save(state.recentSearches)
 
       case .result:
         return .none
@@ -47,6 +82,28 @@ struct SearchFeature {
     .ifLet(\.result, action: \.result) {
       SearchResultFeature()
     }
+  }
+
+  /// 결과 영역을 열고, 검색어를 최근 검색어 맨 위에 기록한다. 빈 검색어면 아무것도 하지 않는다.
+  private func search(_ query: String, state: inout State) -> Effect<Action> {
+    let keyword = query.trimmed
+    guard !keyword.isEmpty else { return .none }
+    state.result = SearchResultFeature.State(keyword: keyword)
+
+    // 대소문자만 다른 검색어는 같은 것으로 보고, 마지막에 입력한 형태와 지금 시각으로 바꾼다.
+    let recentSearch = RecentSearch(keyword: keyword, searchedAt: now)
+    state.recentSearches.removeAll { $0.id == recentSearch.id }
+    state.recentSearches.insert(recentSearch, at: 0)
+    if state.recentSearches.count > Self.maxRecentSearchCount {
+      state.recentSearches.removeLast(state.recentSearches.count - Self.maxRecentSearchCount)
+    }
+    return save(state.recentSearches)
+  }
+
+  /// 연달아 바꿔도 마지막 목록이 마지막에 쓰이도록, effect 로 미루지 않고 바로 저장한다.
+  private func save(_ recentSearches: [RecentSearch]) -> Effect<Action> {
+    recentSearchClient.save(recentSearches)
+    return .none
   }
 }
 
