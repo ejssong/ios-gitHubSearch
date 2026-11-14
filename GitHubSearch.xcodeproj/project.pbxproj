@@ -142,10 +142,10 @@
 				};
 			};
 			buildConfigurationList = A1000000000000000000000D /* Build configuration list for PBXProject "GitHubSearch" */;
-			developmentRegion = en;
+			developmentRegion = ko;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				ko,
 				Base,
 			);
 			mainGroup = A10000000000000000000006;
