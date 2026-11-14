@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import SearchFeature
 import SwiftUI
 
 public struct AppView: View {
@@ -9,9 +10,6 @@ public struct AppView: View {
   }
 
   public var body: some View {
-    NavigationStack {
-      Text("GitHub Search")
-        .navigationTitle("GitHub Search")
-    }
+    SearchView(store: store.scope(state: \.search, action: \.search))
   }
 }

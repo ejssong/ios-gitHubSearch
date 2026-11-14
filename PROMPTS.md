@@ -67,3 +67,36 @@
   - 검색 결과 화면 7개: 화면 전환 방식, WebView 구현, 오류·빈 결과 표시, 첫 검색 로딩, 페이지 크기와 끝 처리, 다음 페이지 호출 시점, 썸네일 로딩
   - 공통 5개: 외부 라이브러리, 자동완성 매칭, 모듈 구성, 테스트 범위, 지원 범위
   - 이슈 관리 2개: 이슈 단위, 작업 흐름
+
+## 5. 모듈 구조와 HTTPClient (#1)
+
+> 이슈 #1 작업 시작할게. 브랜치 만들어서 진행해줘.
+>
+> 코드 작성 전에 타깃 의존 방향이랑 Core 클라이언트 두 개의 인터페이스 초안 먼저 보여줘.
+>
+> - SearchFeature, SearchResultFeature 는 빈 리듀서랑 빈 화면까지만.
+> - 테스트 타깃마다 테스트가 최소 하나는 돌게 해줘. 실제 네트워크 호출은 없이
+> - HTTP 에러는 클라이언트 안에서 의미 있는 에러로 바꿔서 넘길거야.
+>
+> 빌드랑 테스트 통과 확인하고 PR 올려줘. 머지는 내가 코드 보고 나서 할게.
+
+초안을 확인한 뒤 보낸 수정 요청입니다.
+
+> 전체적으로 모듈 구조는 정리된 것 같고, 아래로 해당 역할을 분명하게 해줘. (이건 실제 feature 구현 할 때)
+> - SearchFeature : 검색어 입력, 최근 검색어 저장/삭제, 검색 실행 전달
+> - SearchResultFeature : 검색 API/DTO, 결과, 로딩, 오류, 페이지 상태
+> - Core : HTTPClient
+>
+> HTTPError도 조금 단순하게 수정해줘.
+> - network, rateLimited, invaliedRequest, unknown 만 남겨주고
+
+**구현 요소**
+- 의존 방향: `AppFeature` → `SearchFeature` → `SearchResultFeature` → `Core`
+- `Core` 는 `HTTPClient` 만 두고 `swift-dependencies` 에만 의존. 초안에 있던 UserDefaults 클라이언트는 제외하고, 최근 검색어 저장은 `SearchFeature` 의 역할로 정리
+- `HTTPError` 는 `network`, `rateLimited`, `invalidRequest`, `unknown` 네 가지. 상태 코드와 연결 오류를 클라이언트 안에서 변환
+- `SearchFeature`, `SearchResultFeature` 는 빈 리듀서와 빈 화면
+- 테스트는 Swift Testing. `HTTPClient` 는 `URLProtocol` 가짜 응답으로 실제 네트워크 없이 검증
+
+**결과**
+- 시뮬레이터 빌드 성공, 테스트 13개 통과 (`CoreTests` 10개, Feature 테스트 각 1개)
+- 이슈 #1 본문을 바뀐 결정에 맞게 수정하고 PR 로 올림 (머지는 코드 확인 후)
