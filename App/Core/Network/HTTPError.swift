@@ -1,7 +1,7 @@
 import Foundation
 
 /// `HTTPClient` 가 던지는 오류. Feature 는 이 값만 보고 안내 문구를 정한다.
-public enum HTTPError: Error, Equatable, Sendable {
+enum HTTPError: Error, Equatable, Sendable {
   /// 연결 실패, 타임아웃 등 서버에 닿지 못한 경우
   case network
   /// 호출 제한에 걸린 경우 (429, 또는 한도 소진을 알리는 403)

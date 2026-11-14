@@ -3,14 +3,14 @@ import DependenciesMacros
 import Foundation
 
 @DependencyClient
-public struct HTTPClient: Sendable {
+struct HTTPClient: Sendable {
   /// 2xx 면 응답 본문을 돌려주고, 아니면 `HTTPError` 를 던진다.
-  public var send: @Sendable (_ request: HTTPRequest) async throws -> Data
+  var send: @Sendable (_ request: HTTPRequest) async throws -> Data
 }
 
 extension HTTPClient {
   /// `send` 후 JSON 으로 해석한다. 해석할 수 없으면 `HTTPError.unknown`.
-  public func send<Response: Decodable>(
+  func send<Response: Decodable>(
     _ request: HTTPRequest,
     as type: Response.Type = Response.self,
     decoder: JSONDecoder = JSONDecoder()
@@ -25,7 +25,7 @@ extension HTTPClient {
 }
 
 extension HTTPClient {
-  public static func live(session: URLSession = .shared) -> Self {
+  static func live(session: URLSession = .shared) -> Self {
     Self(send: { request in
       guard var components = URLComponents(url: request.url, resolvingAgainstBaseURL: false)
       else { throw HTTPError.invalidRequest }
@@ -70,12 +70,12 @@ extension HTTPClient {
 }
 
 extension HTTPClient: DependencyKey {
-  public static let liveValue = HTTPClient.live()
-  public static let testValue = HTTPClient()
+  static let liveValue = HTTPClient.live()
+  static let testValue = HTTPClient()
 }
 
 extension DependencyValues {
-  public var httpClient: HTTPClient {
+  var httpClient: HTTPClient {
     get { self[HTTPClient.self] }
     set { self[HTTPClient.self] = newValue }
   }

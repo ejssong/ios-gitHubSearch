@@ -100,3 +100,26 @@
 **결과**
 - 시뮬레이터 빌드 성공, 테스트 13개 통과 (`CoreTests` 10개, Feature 테스트 각 1개)
 - 이슈 #1 본문을 바뀐 결정에 맞게 수정하고 PR 로 올림 (머지는 코드 확인 후)
+
+## 6. 로컬 패키지를 폴더 구조로 변경 (#9)
+
+Xcode 에서 패키지 구조를 확인한 뒤 보낸 프롬프트입니다.
+
+> 기존 요구사항이었어? GitHubSearchKit 으로 하는게? 그냥 폴더로만 관리하는게 좋을 것 같은데
+
+> Issues 새로 만들어서 fix 로 구현해줘
+
+> -skipMacroValidation 관련해서는 README 에 넣어주세요.
+
+> Core 에서도 Network 로 정리해줘
+
+**구현 요소**
+- 로컬 패키지는 과제 요구사항이 아니었고, 화면 3개 규모에 모듈 4개는 과하다고 판단해 3번 항목의 결정을 변경
+- `GitHubSearchKit` 을 삭제하고 앱 타깃 폴더로 이동: `App/Core/Network`, `App/Search`, `App/SearchResult`. 역할 구분은 그대로이고 의존 방향은 규칙으로 유지
+- TCA 를 프로젝트에 직접 연결 (1.26.2 고정 유지), 테스트 타깃 `GitHubSearchTests` 와 공유 스킴 추가
+- 모듈 경계용 `public` 선언 제거. 동작 변경 없음
+- README 에 매크로 신뢰 확인(Trust & Enable)과 명령줄의 `-skipMacroValidation` 설명 추가
+
+**결과**
+- 이슈 #9 생성 (라벨 `fix`)
+- 시뮬레이터 빌드 성공, 기존 테스트 13개가 새 테스트 타깃에서 통과

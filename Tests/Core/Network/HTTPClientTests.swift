@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Core
+@testable import GitHubSearch
 
 struct HTTPClientTests {
   private func request(_ path: String) -> HTTPRequest {
