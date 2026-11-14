@@ -17,19 +17,6 @@ build/
 # Swift Package Manager
 .build/
 .swiftpm/
-Packages/
-
-# CocoaPods
-Pods/
-
-# Carthage
-Carthage/Build/
-
-# fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
 
 # Secrets / local config
 *.xcconfig.local
