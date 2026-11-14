@@ -11,13 +11,13 @@ import json
 import os
 import re
 import sys
-from datetime import datetime
 
 LOG_NAME = "PROMPTS.md"
 HEADER = (
     "# Prompts\n\n"
     "이 과제를 진행하며 AI(Claude Code)에게 보낸 프롬프트 기록입니다.  \n"
-    "`.claude/hooks/log_prompt.py` hook 이 내가 입력한 본문만 자동으로 추가합니다.\n"
+    "`.claude/hooks/log_prompt.py` hook 이 내가 입력한 본문만 자동으로 추가하고,\n"
+    "작업이 끝나면 프롬프트마다 구현 요소와 결과를 정리합니다.\n"
 )
 
 # 시스템·하네스가 끼워넣는 블록. 사용자가 쓴 문장이 아니므로 통째로 지운다.
@@ -56,7 +56,7 @@ def main() -> None:
     path = os.path.join(root, LOG_NAME)
 
     quoted = "\n".join((">" if not line else "> " + line) for line in body.split("\n"))
-    entry = "\n## %s\n\n%s\n" % (datetime.now().strftime("%Y-%m-%d %H:%M"), quoted)
+    entry = "\n---\n\n%s\n" % quoted
 
     is_new = not os.path.exists(path) or os.path.getsize(path) == 0
     with open(path, "a", encoding="utf-8") as f:
