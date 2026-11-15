@@ -51,8 +51,7 @@ struct SearchResultFeature {
 
     /// 예: "266,714개 저장소". 기기 설정과 상관없이 세 자리마다 쉼표를 찍는다.
     var totalCountText: String {
-      let count = totalCount.formatted(.number.grouping(.automatic).locale(Locale(identifier: "en_US")))
-      return "\(count)개 저장소"
+      "\(totalCount.groupedText)개 저장소"
     }
 
     /// 목록 대신 보여줄 안내 문구. 목록이나 로딩을 보여줄 때는 `nil`.

@@ -16,12 +16,6 @@ struct RecentSearch: Codable, Equatable, Identifiable, Sendable {
 
   /// 검색한 날짜. `MM.dd` (예: `03.09`)
   func searchedDateText(calendar: Calendar = .current) -> String {
-    searchedAt.formatted(
-      Date.VerbatimFormatStyle(
-        format: "\(month: .twoDigits).\(day: .twoDigits)",
-        timeZone: calendar.timeZone,
-        calendar: calendar
-      )
-    )
+    searchedAt.monthDayText(calendar: calendar)
   }
 }

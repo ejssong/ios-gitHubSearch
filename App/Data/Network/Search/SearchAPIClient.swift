@@ -87,7 +87,7 @@ extension APIClientProtocol {
   ///
   /// `per_page` 를 보내지 않아 한 페이지는 API 기본값인 30개다. 화면의 다음 페이지 판단이 이 값에 기대므로,
   /// `per_page` 를 보내게 되면 함께 맞춰야 한다.
-  func searchRepositories(keyword: String, page: Int) async throws -> SearchRepositoriesResponse {
+  func searchRepositories(keyword: String, page: Int) async throws -> SearchDTO {
     try await get(
       path: "search/repositories",
       queryItems: [

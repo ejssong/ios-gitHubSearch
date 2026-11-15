@@ -1,7 +1,7 @@
 import Foundation
 
 /// `GET /search/repositories` 응답(DTO). `SearchRepository` 구현 안에서만 쓰고 밖으로는 `RepositorySearchPage` 로 바꿔 넘긴다.
-struct SearchRepositoriesResponse: Decodable, Equatable, Sendable {
+struct SearchDTO: Decodable, Equatable, Sendable {
   let totalCount: Int
   let items: [Item]
 
@@ -34,7 +34,7 @@ struct SearchRepositoriesResponse: Decodable, Equatable, Sendable {
   }
 }
 
-extension SearchRepositoriesResponse {
+extension SearchDTO {
   /// WebView 로 열 수 있는 주소만 남긴다. `URL(string:)` 은 scheme 이 없거나 `file:` 인 문자열도 받아들이기 때문이다.
   private static func webPageURL(_ string: String) -> URL? {
     guard

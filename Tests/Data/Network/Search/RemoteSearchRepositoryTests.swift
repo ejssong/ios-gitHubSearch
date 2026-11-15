@@ -4,7 +4,7 @@ import Testing
 
 @testable import GitHubSearch
 
-struct SearchRepositoryLiveTests {
+struct RemoteSearchRepositoryTests {
   /// 실제 응답에서 쓰는 필드와 쓰지 않는 필드를 섞은 본문
   private let body = Data(
     """
@@ -39,7 +39,7 @@ struct SearchRepositoryLiveTests {
 
   @Test
   func searchDecodesTotalCountAndRepositories() async throws {
-    let repository = SearchRepository.live(apiClient: StubAPIClient(respond: { [body] _, _ in body }))
+    let repository = RemoteSearchRepository.make(apiClient: StubAPIClient(respond: { [body] _, _ in body }))
 
     let page = try await repository.search("swift", 1)
 
@@ -64,7 +64,7 @@ struct SearchRepositoryLiveTests {
   @Test
   func searchRequestsSearchRepositoriesPathWithKeywordAndPage() async throws {
     let requests = LockIsolated<[String]>([])
-    let repository = SearchRepository.live(
+    let repository = RemoteSearchRepository.make(
       apiClient: StubAPIClient(respond: { [body] path, queryItems in
         let query = queryItems.map { "\($0.name)=\($0.value ?? "")" }.joined(separator: "&")
         requests.withValue { $0.append("\(path)?\(query)") }
@@ -85,7 +85,7 @@ struct SearchRepositoryLiveTests {
     (HTTPError.unknown, SearchError.unknown),
   ])
   func searchConvertsHTTPErrorToSearchError(httpError: HTTPError, expected: SearchError) async {
-    let repository = SearchRepository.live(apiClient: StubAPIClient(respond: { _, _ in throw httpError }))
+    let repository = RemoteSearchRepository.make(apiClient: StubAPIClient(respond: { _, _ in throw httpError }))
 
     await #expect(throws: expected) {
       try await repository.search("swift", 1)
@@ -95,7 +95,7 @@ struct SearchRepositoryLiveTests {
   /// 올바른 JSON 이어도 응답 모양이 다르면 그 밖의 오류가 된다.
   @Test
   func searchThrowsUnknownWhenBodyHasUnexpectedShape() async {
-    let repository = SearchRepository.live(
+    let repository = RemoteSearchRepository.make(
       apiClient: StubAPIClient(respond: { _, _ in Data(#"{"message":"unexpected"}"#.utf8) })
     )
 
@@ -110,7 +110,7 @@ struct SearchRepositoryLiveTests {
     let session = StubURLProtocol.session(
       path: "/search/repositories", stub: .response(statusCode: 200, body: body)
     )
-    let repository = SearchRepository.live(apiClient: SearchAPIClient(session: session))
+    let repository = RemoteSearchRepository.make(apiClient: SearchAPIClient(session: session))
 
     let page = try await repository.search("c++", 2)
 
@@ -124,7 +124,7 @@ struct SearchRepositoryLiveTests {
   /// 취소는 오류로 바꾸지 않고 그대로 넘긴다.
   @Test
   func searchPassesCancellationThrough() async {
-    let repository = SearchRepository.live(apiClient: StubAPIClient(respond: { _, _ in throw CancellationError() }))
+    let repository = RemoteSearchRepository.make(apiClient: StubAPIClient(respond: { _, _ in throw CancellationError() }))
 
     await #expect(throws: CancellationError.self) {
       try await repository.search("swift", 1)
@@ -136,7 +136,7 @@ struct SearchRepositoryLiveTests {
     let body = Data(
       #"{"total_count": 1, "items": [{"id": 7, "name": "orphan", "owner": null}]}"#.utf8
     )
-    let repository = SearchRepository.live(apiClient: StubAPIClient(respond: { _, _ in body }))
+    let repository = RemoteSearchRepository.make(apiClient: StubAPIClient(respond: { _, _ in body }))
 
     let page = try await repository.search("orphan", 1)
 
@@ -155,7 +155,7 @@ struct SearchRepositoryLiveTests {
       #"{"total_count": 1, "items": [{"id": 8, "name": "blank", "owner": {"login": "someone", "avatar_url": ""}}]}"#
         .utf8
     )
-    let repository = SearchRepository.live(apiClient: StubAPIClient(respond: { _, _ in body }))
+    let repository = RemoteSearchRepository.make(apiClient: StubAPIClient(respond: { _, _ in body }))
 
     let page = try await repository.search("blank", 1)
 
@@ -171,7 +171,7 @@ struct SearchRepositoryLiveTests {
       #"{"total_count": 1, "items": [{"id": 9, "name": "blank", "owner": {"login": "someone"}, "html_url": ""}]}"#
         .utf8
     )
-    let repository = SearchRepository.live(apiClient: StubAPIClient(respond: { _, _ in body }))
+    let repository = RemoteSearchRepository.make(apiClient: StubAPIClient(respond: { _, _ in body }))
 
     let page = try await repository.search("blank", 1)
 
@@ -188,7 +188,7 @@ struct SearchRepositoryLiveTests {
   ])
   func htmlURLIsNilUnlessItIsWebAddress(fields: String) async throws {
     let body = Data(#"{"total_count": 1, "items": [{"id": 1, \#(fields)}]}"#.utf8)
-    let repository = SearchRepository.live(apiClient: StubAPIClient(respond: { _, _ in body }))
+    let repository = RemoteSearchRepository.make(apiClient: StubAPIClient(respond: { _, _ in body }))
 
     let page = try await repository.search("a", 1)
 

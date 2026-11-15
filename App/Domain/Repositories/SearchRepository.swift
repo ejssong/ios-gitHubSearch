@@ -3,7 +3,7 @@ import DependenciesMacros
 
 /// 저장소 검색의 인터페이스. 리듀서는 이것만 본다.
 ///
-/// 어디서 어떻게 가져오는지(GitHub API, HTTP, 응답 모양)는 `Data` 의 구현이 맡는다.
+/// 어디서 어떻게 가져오는지(GitHub API, HTTP, 응답 모양)는 `Data` 의 구현이 맡고, 어떤 구현을 쓸지는 `Application` 이 정한다.
 /// 화면 상태(로딩, 재시도)는 이것을 쓰는 리듀서가 정한다.
 @DependencyClient
 struct SearchRepository: Sendable {

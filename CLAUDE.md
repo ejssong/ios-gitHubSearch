@@ -13,21 +13,23 @@ GitHub 저장소 검색 iOS 앱 과제입니다. 요구사항은 [docs/requireme
 
 | 폴더 | 역할 |
 |---|---|
-| `App/Application` | 진입점(`GitHubSearchApp`)과 `AppFeature`. 계층을 조립한다 |
+| `App/Application` | 진입점(`GitHubSearchApp`)과 `AppFeature`. 계층을 조립한다. 저장소의 `liveValue` 를 여기서 정한다 (`Dependencies.swift`) |
 | `App/Feature/Search` | 검색어 입력, 최근 검색어, 자동완성, 검색 실행 전달 |
 | `App/Feature/SearchResult` | 결과 목록, 로딩, 오류, 페이지 상태 |
 | `App/Feature/WebView` | 저장소 페이지 화면 |
 | `App/Domain/Entities` | 화면과 저장소가 주고받는 모델과 오류 (`RepositoryItem`, `RepositorySearchPage`, `RecentSearch`, `SearchError`) |
 | `App/Domain/Repositories` | 저장소 인터페이스. `@DependencyClient` 선언과 `testValue` (`SearchRepository`, `RecentSearchRepository`) |
 | `App/Data/Network` | 통신 계층의 공통 약속. `APIClientProtocol` (GET 요청을 보내고 응답을 해석), `HTTPError` |
-| `App/Data/Network/Search` | 검색 API. 서버 주소·공통 헤더와 실제 전송(`SearchAPIClient`), 검색 endpoint(`searchRepositories(keyword:page:)`), 응답 DTO, `SearchRepository` 의 구현(`liveValue`) |
-| `App/Data/UserDefaults` | `RecentSearchRepository` 의 구현(`liveValue`) |
+| `App/Data/Network/Search` | 검색 API. 서버 주소·공통 헤더와 실제 전송(`SearchAPIClient`), 검색 endpoint(`searchRepositories(keyword:page:)`), 응답 DTO, `SearchRepository` 를 만드는 `RemoteSearchRepository` |
+| `App/Util` | 계층과 무관한 공통 도구. 지금은 화면용 문자열 포맷(`Formatters.swift`) |
+| `App/Data/UserDefaults` | `RecentSearchRepository` 를 만드는 `UserDefaultsRecentSearchRepository` |
 
 - 의존 방향은 `Feature` → `Domain` ← `Data` 다. 컴파일러가 막아 주지 않으므로 규칙으로 지킨다.
   - `Domain` 은 `Feature`, `Data` 를 참조하지 않는다.
   - `Feature` 는 `Data` 를 참조하지 않는다. (`APIClientProtocol`, `SearchAPIClient`, `HTTPError`, DTO 를 쓰지 않는다)
   - `Feature` 끼리는 `Search` → `SearchResult` → `WebView` 방향으로만 참조한다.
-- 저장소는 선언과 `testValue` 를 `Domain/Repositories` 에, `liveValue` 를 `Data` 에 둔다.
+  - `Util` 은 다른 폴더를 참조하지 않고, 어느 계층에서나 쓸 수 있다.
+- 저장소는 선언과 `testValue` 를 `Domain/Repositories` 에 둔다. 구현은 `Data` 가 자기 타입(`RemoteSearchRepository`, `UserDefaultsRecentSearchRepository`)의 `make` 로 만들어 돌려주고, `Data` 에서 `Domain` 타입을 `extension` 으로 넓히지 않는다. 어떤 구현을 쓸지(`liveValue`)는 `Application/Dependencies.swift` 가 정한다.
 - 전송은 `APIClientProtocol` 을 채택한 `SearchAPIClient` 가 하고, endpoint(경로, 쿼리)는 `APIClientProtocol` 확장의 메서드로 `SearchAPIClient.swift` 에 둔다. 저장소 구현은 프로토콜만 보고, 테스트에서는 가짜 구현으로 바꿔 끼운다. 응답 모델(DTO)은 `Data` 밖으로 내보내지 않고 `Domain` 모델로 바꿔 넘긴다.
 - UseCase 계층은 두지 않는다. 리듀서가 그 역할을 한다.
 - 파일은 `App/` 이나 `Tests/` 아래에 넣기만 하면 타깃에 포함된다. `project.pbxproj` 는 직접 고치지 않는다. 꼭 고쳐야 하면 Xcode 를 닫고 한다. (열려 있으면 Xcode 가 덮어쓴다.)
