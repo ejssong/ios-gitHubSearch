@@ -1,6 +1,6 @@
 import Foundation
 
-/// `HTTPClient` 가 던지는 오류. Feature 는 이 값만 보고 안내 문구를 정한다.
+/// `HTTPClient` 가 던지는 오류. `Data` 안에서만 쓰고, 화면에는 `SearchError` 로 바꿔 넘긴다.
 enum HTTPError: Error, Equatable, Sendable {
   /// 연결 실패, 타임아웃 등 서버에 닿지 못한 경우
   case network

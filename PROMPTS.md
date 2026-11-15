@@ -318,3 +318,54 @@ Xcode 에서 패키지 구조를 확인한 뒤 보낸 프롬프트입니다.
 - 실제 API 로 `page=34` 는 200(30건), `page=35` 는 422 임을 확인. 1,000건 상한 판단과 일치
 - 이슈 #7 결정 사항을 비율 기준으로 고치고 실패 처리, 중복 제거, 취소를 추가
 - 시뮬레이터에서 직접 스크롤해 보는 확인은 하지 않음
+
+## 13. TCA + Clean Architecture 구조로 변경 (#19)
+
+> 전체적으로 폴더 구성을 아래와 같이 구성해주고 싶은데 피드백 해줘.
+> - App
+> - Feature
+>   ㄴ Search
+>   ㄴ SearchResult
+>   ㄴ WebView
+> - Domain
+>   ㄴ Entities
+>   ㄴ Repositories
+> - Data
+>   ㄴ Network
+
+피드백(인터페이스와 구현 분리, 저장 구현의 위치, `HTTPError` 의 위치 등)을 받은 뒤 보낸 프롬프트입니다.
+
+> TCA + Clean Architecture 구조로 변경하고 싶어. Issues 만들어주고 작업할거야.
+> 1. 네
+> 2. Data/UserDefaults 로 진행해주세요
+> 3. Data — HTTPError 를 정하고 Domain -  Repositories 에서 실제 안내 문구를 지정해주세요
+
+이슈 #19 를 만든 뒤, 타입 이름을 묻는 항목에 답한 프롬프트입니다.
+
+> Repository 로 바꾸겠습니다.
+
+> /start-issue 19
+
+계획과 질문 네 가지(오류 타입, 타입 이름, 소스 폴더 위치, GitHub 하위 폴더)를 받은 뒤 보낸 프롬프트입니다.
+
+> 추천대로 해주세요
+
+> /finish-issue
+
+커밋에 들어갈 내용을 확인하며 보낸 프롬프트입니다.
+
+> 네
+
+**구현 요소**
+- 폴더를 `Application` / `Feature` / `Domain` / `Data` 로 나눔. 의존 방향은 `Feature` → `Domain` ← `Data`
+- 저장소를 인터페이스와 구현으로 분리: 선언과 `testValue` 는 `Domain/Repositories` (`SearchRepository`, `RecentSearchRepository`), `liveValue` 는 `Data/Network/GitHub` 와 `Data/UserDefaults`
+- 오류를 두 단계로 나눔: `Data` 의 `HTTPError` 를 저장소 구현이 `Domain` 의 `SearchError` 로 바꿔 넘기고, 안내 문구는 `SearchError.message` 가 정함. 리듀서는 `HTTPError` 를 더 이상 보지 않음
+- `HTTPClient` 는 `Data/Network`, `GitHubAPI` 와 응답 DTO 는 `Data/Network/GitHub` 로 나눠 GitHub 을 모르는 통신 계층을 유지
+- 소스는 `App/` 아래에 두어 `project.pbxproj` 를 고치지 않음. UseCase 계층은 두지 않음
+- `CLAUDE.md` 의 구조 표·의존 방향·오류 규칙과 `.claude/agents/reviewer.md` 의 의존 방향을 새 계층에 맞춤
+
+**결과**
+- 시뮬레이터 빌드 성공, 테스트 91개 통과. 동작 변경 없음 (안내 문구 동일)
+- `Feature`, `Application`, `Domain` 에서 `Data` 의 타입을 쓰는 코드가 없음을 `grep` 으로 확인
+- 로직의 위치는 바꾸지 않아, 화면 표현에 가까운 `RecentSearch.searchedDateText` 등이 `Domain` 에 남아 있음
+- 시뮬레이터에서 화면이 그대로인지 직접 확인하지는 않음

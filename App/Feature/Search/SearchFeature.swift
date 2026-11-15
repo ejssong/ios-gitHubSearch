@@ -46,7 +46,7 @@ struct SearchFeature {
   }
 
   @Dependency(\.date.now) var now
-  @Dependency(\.recentSearchClient) var recentSearchClient
+  @Dependency(\.recentSearchRepository) var recentSearchRepository
 
   init() {}
 
@@ -55,7 +55,7 @@ struct SearchFeature {
       switch action {
       case .viewAppeared:
         state.recentSearches = Array(
-          recentSearchClient.load()
+          recentSearchRepository.load()
             .sorted { $0.searchedAt > $1.searchedAt }
             .prefix(Self.maxRecentSearchCount)
         )
@@ -113,7 +113,7 @@ struct SearchFeature {
 
   /// 연달아 바꿔도 마지막 목록이 마지막에 쓰이도록, effect 로 미루지 않고 바로 저장한다.
   private func save(_ recentSearches: [RecentSearch]) -> Effect<Action> {
-    recentSearchClient.save(recentSearches)
+    recentSearchRepository.save(recentSearches)
     return .none
   }
 }

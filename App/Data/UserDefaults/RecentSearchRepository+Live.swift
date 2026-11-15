@@ -1,16 +1,8 @@
 import Dependencies
-import DependenciesMacros
 import Foundation
 
-/// 최근 검색어 목록을 통째로 읽고 쓴다. 중복, 정렬, 개수 제한은 `SearchFeature` 가 정한다.
-@DependencyClient
-struct RecentSearchClient: Sendable {
-  /// 저장된 목록. 저장된 것이 없거나 읽을 수 없으면 빈 배열.
-  var load: @Sendable () -> [RecentSearch] = { [] }
-  var save: @Sendable (_ searches: [RecentSearch]) -> Void
-}
-
-extension RecentSearchClient {
+/// `UserDefaults` 에 JSON 으로 저장해 `RecentSearchRepository` 를 구현한다.
+extension RecentSearchRepository {
   /// - Parameter suiteName: `nil` 이면 `UserDefaults.standard` 를 쓴다.
   static func live(suiteName: String? = nil) -> Self {
     let key = "recentSearches"
@@ -31,14 +23,6 @@ extension RecentSearchClient {
   }
 }
 
-extension RecentSearchClient: DependencyKey {
-  static let liveValue = RecentSearchClient.live()
-  static let testValue = RecentSearchClient()
-}
-
-extension DependencyValues {
-  var recentSearchClient: RecentSearchClient {
-    get { self[RecentSearchClient.self] }
-    set { self[RecentSearchClient.self] = newValue }
-  }
+extension RecentSearchRepository: DependencyKey {
+  static let liveValue = RecentSearchRepository.live()
 }

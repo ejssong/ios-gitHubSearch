@@ -38,8 +38,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
-      $0.recentSearchClient.save = { _ in }
+      $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
+      $0.recentSearchRepository.save = { _ in }
     }
 
     await store.send(.searchSubmitted) {
@@ -114,7 +114,7 @@ struct SearchFeatureTests {
     let store = TestStore(initialState: SearchFeature.State()) {
       SearchFeature()
     } withDependencies: {
-      $0.recentSearchClient.load = { stored }
+      $0.recentSearchRepository.load = { stored }
     }
 
     await store.send(.viewAppeared) {
@@ -133,8 +133,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
-      $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
+      $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
+      $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
     let expected = [recent("swift", secondsAgo: 0), recent("tca", secondsAgo: 10)]
@@ -157,8 +157,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
-      $0.recentSearchClient.save = { _ in }
+      $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
+      $0.recentSearchRepository.save = { _ in }
     }
 
     await store.send(.searchSubmitted) {
@@ -178,8 +178,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
-      $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
+      $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
+      $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
     let expected = [recent("swift", secondsAgo: 0)] + existing.dropLast()
@@ -203,8 +203,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
-      $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
+      $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
+      $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
     let expected = [recent("swift", secondsAgo: 0), recent("tca", secondsAgo: 10)]
@@ -227,7 +227,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
-      $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
+      $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
     await store.send(.recentSearchDeleteTapped(recent("tca", secondsAgo: 10))) {
@@ -246,7 +246,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
-      $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
+      $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
     await store.send(.recentSearchesClearTapped) {
@@ -266,7 +266,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
-      $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
+      $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
     await store.send(.recentSearchDeleteTapped(recent("tca", secondsAgo: 10))) {
@@ -294,8 +294,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.recentSearchClient.save = { _ in }
-      $0.repositorySearchClient.search = { _, _ in
+      $0.recentSearchRepository.save = { _ in }
+      $0.searchRepository.search = { _, _ in
         RepositorySearchPage(totalCount: 1, repositories: [repository])
       }
     }
@@ -320,8 +320,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.recentSearchClient.save = { _ in }
-      $0.repositorySearchClient.search = { _, _ in try await Task.never() }
+      $0.recentSearchRepository.save = { _ in }
+      $0.searchRepository.search = { _, _ in try await Task.never() }
     }
 
     await store.send(.searchSubmitted) {
@@ -344,8 +344,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.recentSearchClient.save = { _ in }
-      $0.repositorySearchClient.search = { _, _ in
+      $0.recentSearchRepository.save = { _ in }
+      $0.searchRepository.search = { _, _ in
         let call = callCount.withValue { count in
           count += 1
           return count
@@ -464,8 +464,8 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
-      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
-      $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
+      $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
+      $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
     let expected = [

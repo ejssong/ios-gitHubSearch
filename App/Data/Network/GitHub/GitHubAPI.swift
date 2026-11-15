@@ -1,7 +1,7 @@
 import Foundation
 
 /// GitHub REST API 의 요청을 한곳에서 만든다. 서버 주소, 공통 헤더, 각 endpoint 의 경로와 쿼리를 안다.
-/// 응답 모양(DTO)과 화면용 모델로의 변환은 그 endpoint 를 쓰는 Feature 가 맡는다.
+/// 응답 모양(DTO)과 도메인 모델로의 변환은 같은 폴더의 저장소 구현이 맡는다.
 enum GitHubAPI {
   /// 고정된 문자열이라 실패하지 않는다.
   static let baseURL = URL(string: "https://api.github.com")!
@@ -10,7 +10,7 @@ enum GitHubAPI {
   static let defaultHeaders = ["Accept": "application/vnd.github+json"]
 
   /// `GET /search/repositories?q={keyword}&page={page}`. `page` 는 1부터 센다.
-  /// `per_page` 를 보내지 않아 한 페이지는 API 기본값인 30개다. `SearchResultFeature.pageSize` 가 이 값에 기댄다.
+  /// `per_page` 를 보내지 않아 한 페이지는 API 기본값인 30개다. 화면의 다음 페이지 판단(`SearchResultFeature.pageSize`)이 이 값에 기대므로, `per_page` 를 보내게 되면 함께 맞춰야 한다.
   static func searchRepositories(keyword: String, page: Int) -> HTTPRequest {
     request(
       path: "search/repositories",

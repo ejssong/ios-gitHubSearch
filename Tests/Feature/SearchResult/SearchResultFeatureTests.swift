@@ -32,7 +32,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { [page] keyword, pageNumber in
+      $0.searchRepository.search = { [page] keyword, pageNumber in
         calls.withValue { $0.append("\(keyword)#\(pageNumber)") }
         return page
       }
@@ -56,7 +56,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "zzzz")) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in
+      $0.searchRepository.search = { _, _ in
         RepositorySearchPage(totalCount: 0, repositories: [])
       }
     }
@@ -74,7 +74,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in throw HTTPError.network }
+      $0.searchRepository.search = { _, _ in throw SearchError.network }
     }
 
     await store.send(.searchRequested)
@@ -89,7 +89,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in throw HTTPError.rateLimited }
+      $0.searchRepository.search = { _, _ in throw SearchError.rateLimited }
     }
 
     await store.send(.searchRequested)
@@ -100,27 +100,12 @@ struct SearchResultFeatureTests {
   }
 
   @Test
-  func invalidRequestShowsGenericNotice() async {
-    let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
-      SearchResultFeature()
-    } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in throw HTTPError.invalidRequest }
-    }
-
-    await store.send(.searchRequested)
-    await store.receive(\.searchResponse.failure) {
-      $0.phase = .failed(.invalidRequest)
-    }
-    #expect(store.state.notice == "문제가 발생했습니다. 다시 시도해 주세요.")
-  }
-
-  @Test
-  func errorOtherThanHTTPErrorBecomesUnknown() async {
+  func errorOtherThanSearchErrorBecomesUnknown() async {
     struct SomeError: Error {}
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in throw SomeError() }
+      $0.searchRepository.search = { _, _ in throw SomeError() }
     }
 
     await store.send(.searchRequested)
@@ -137,7 +122,7 @@ struct SearchResultFeatureTests {
     ) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { [page] _, _ in page }
+      $0.searchRepository.search = { [page] _, _ in page }
     }
 
     await store.send(.retryTapped) {
@@ -161,7 +146,7 @@ struct SearchResultFeatureTests {
     ) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in throw HTTPError.network }
+      $0.searchRepository.search = { _, _ in throw SearchError.network }
     }
 
     await store.send(.retryTapped) {
@@ -181,7 +166,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { [page] _, _ in
+      $0.searchRepository.search = { [page] _, _ in
         let call = callCount.withValue { count in
           count += 1
           return count
@@ -307,7 +292,7 @@ struct SearchResultFeatureTests {
     ) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { [swift] _, _ in
+      $0.searchRepository.search = { [swift] _, _ in
         RepositorySearchPage(totalCount: 1, repositories: [swift])
       }
     }
@@ -349,7 +334,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { keyword, page in
+      $0.searchRepository.search = { keyword, page in
         calls.withValue { $0.append("\(keyword)#\(page)") }
         return secondPage
       }
@@ -386,7 +371,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: state) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in thirdPage }
+      $0.searchRepository.search = { _, _ in thirdPage }
     }
 
     await store.send(.repositoryAppeared(41))
@@ -408,7 +393,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in
+      $0.searchRepository.search = { _, _ in
         callCount.withValue { $0 += 1 }
         for await page in responses { return page }
         throw CancellationError()
@@ -434,7 +419,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { [items = items(1...30)] _, _ in
+      $0.searchRepository.search = { [items = items(1...30)] _, _ in
         RepositorySearchPage(totalCount: 30, repositories: items)
       }
     }
@@ -455,7 +440,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage(totalCount: 45)) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in lastPage }
+      $0.searchRepository.search = { _, _ in lastPage }
     }
 
     await store.send(.repositoryAppeared(30)) {
@@ -480,7 +465,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: state) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in lastPage }
+      $0.searchRepository.search = { _, _ in lastPage }
     }
 
     await store.send(.repositoryAppeared(990)) {
@@ -500,7 +485,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in
+      $0.searchRepository.search = { _, _ in
         RepositorySearchPage(totalCount: 100, repositories: [])
       }
     }
@@ -523,7 +508,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in overlapping }
+      $0.searchRepository.search = { _, _ in overlapping }
     }
 
     await store.send(.repositoryAppeared(30)) {
@@ -543,7 +528,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { [first = items(1...30), third = items(31...60)] _, page in
+      $0.searchRepository.search = { [first = items(1...30), third = items(31...60)] _, page in
         calls.withValue { $0.append(page) }
         return RepositorySearchPage(totalCount: 100, repositories: page == 2 ? first : third)
       }
@@ -570,9 +555,9 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in
+      $0.searchRepository.search = { _, _ in
         callCount.withValue { $0 += 1 }
-        throw HTTPError.rateLimited
+        throw SearchError.rateLimited
       }
     }
 
@@ -599,7 +584,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: state) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, page in
+      $0.searchRepository.search = { _, page in
         calls.withValue { $0.append(page) }
         return secondPage
       }
@@ -623,7 +608,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage(totalCount: 100)) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in secondPage }
+      $0.searchRepository.search = { _, _ in secondPage }
     }
 
     await store.send(.repositoryAppeared(30)) {
@@ -638,12 +623,12 @@ struct SearchResultFeatureTests {
   }
 
   @Test
-  func nextPageErrorOtherThanHTTPErrorBecomesUnknown() async {
+  func nextPageErrorOtherThanSearchErrorBecomesUnknown() async {
     struct SomeError: Error {}
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, _ in throw SomeError() }
+      $0.searchRepository.search = { _, _ in throw SomeError() }
     }
 
     await store.send(.repositoryAppeared(30)) {
@@ -691,7 +676,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
-      $0.repositorySearchClient.search = { _, page in
+      $0.searchRepository.search = { _, page in
         if page == 2 { try await Task.never() }
         return fresh
       }

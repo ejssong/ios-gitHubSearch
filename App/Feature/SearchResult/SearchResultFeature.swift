@@ -2,12 +2,12 @@ import ComposableArchitecture
 import Foundation
 
 /// 검색어 하나에 대한 결과 영역. 언제 요청하고 무엇을 보여줄지를 정한다.
-/// URL, JSON, DTO 는 `RepositorySearchClient` 가 맡고 여기서는 모른다.
+/// 어디서 어떻게 가져오는지는 `SearchRepository` 의 구현이 맡고 여기서는 모른다.
 @Reducer
 struct SearchResultFeature {
   /// 나타난 행이 불러온 목록의 이 지점(%)을 지났으면 다음 페이지를 미리 요청한다.
   static let prefetchThresholdPercent = 70
-  /// 한 페이지의 항목 수. `GitHubAPI.searchRepositories` 가 `per_page` 를 보내지 않아 API 기본값이 쓰인다.
+  /// 한 페이지의 항목 수. 검색 API 의 기본값이다. 요청에 `per_page` 를 보내지 않는다.
   /// `per_page` 를 보내게 되면 이 값도 함께 맞춰야 한다.
   static let pageSize = 30
   /// GitHub 검색 API 가 돌려주는 결과의 상한
@@ -63,25 +63,14 @@ struct SearchResultFeature {
       case .loaded:
         repositories.isEmpty ? "검색 결과가 없습니다." : nil
       case let .failed(error):
-        Self.message(for: error)
+        error.message
       }
     }
 
     /// 다음 페이지를 불러오지 못했을 때 목록 맨 아래에 보여줄 안내 문구
     var nextPageNotice: String? {
       guard case let .failed(error) = nextPagePhase else { return nil }
-      return Self.message(for: error)
-    }
-
-    private static func message(for error: HTTPError) -> String {
-      switch error {
-      case .network:
-        "네트워크 연결을 확인해 주세요."
-      case .rateLimited:
-        "요청이 많습니다. 잠시 후 다시 시도해 주세요."
-      case .invalidRequest, .unknown:
-        "문제가 발생했습니다. 다시 시도해 주세요."
-      }
+      return error.message
     }
   }
 
@@ -89,7 +78,7 @@ struct SearchResultFeature {
     case idle
     /// 다음 페이지를 불러오는 중. 목록 맨 아래에 로딩 표시를 보여준다.
     case loading
-    case failed(HTTPError)
+    case failed(SearchError)
   }
 
   enum Phase: Equatable {
@@ -97,18 +86,18 @@ struct SearchResultFeature {
     case loading
     /// 불러오기를 마쳤다. `repositories` 가 비어 있으면 결과 0건이다.
     case loaded
-    case failed(HTTPError)
+    case failed(SearchError)
   }
 
   enum Action {
     /// 검색이 실행되었다. `SearchFeature` 가 결과 상태를 만든 직후 보낸다.
     case searchRequested
     case retryTapped
-    case searchResponse(Result<RepositorySearchPage, HTTPError>)
+    case searchResponse(Result<RepositorySearchPage, SearchError>)
     case repositoryTapped(RepositoryItem)
     /// 행이 화면에 나타났다. 다음 페이지를 미리 불러올지는 리듀서가 정한다.
     case repositoryAppeared(RepositoryItem.ID)
-    case nextPageResponse(Result<RepositorySearchPage, HTTPError>)
+    case nextPageResponse(Result<RepositorySearchPage, SearchError>)
     case nextPageRetryTapped
     /// push 된 WebView 화면의 액션. 뒤로 가면 `.dismiss` 가 온다.
     case webPage(PresentationAction<RepositoryWebFeature.Action>)
@@ -116,7 +105,7 @@ struct SearchResultFeature {
 
   private enum CancelID { case search, nextPage }
 
-  @Dependency(\.repositorySearchClient) var repositorySearchClient
+  @Dependency(\.searchRepository) var searchRepository
 
   init() {}
 
@@ -198,11 +187,11 @@ struct SearchResultFeature {
   private func firstPage(keyword: String) -> Effect<Action> {
     .run { send in
       do {
-        let page = try await repositorySearchClient.search(keyword, 1)
+        let page = try await searchRepository.search(keyword, 1)
         await send(.searchResponse(.success(page)))
       } catch is CancellationError {
         // 새 검색이나 화면 닫힘으로 취소된 요청은 결과를 알리지 않는다.
-      } catch let error as HTTPError {
+      } catch let error as SearchError {
         await send(.searchResponse(.failure(error)))
       } catch {
         await send(.searchResponse(.failure(.unknown)))
@@ -216,11 +205,11 @@ struct SearchResultFeature {
     state.nextPagePhase = .loading
     return .run { [keyword = state.keyword, page = state.loadedPageCount + 1] send in
       do {
-        let page = try await repositorySearchClient.search(keyword, page)
+        let page = try await searchRepository.search(keyword, page)
         await send(.nextPageResponse(.success(page)))
       } catch is CancellationError {
         // 새 검색으로 취소된 요청은 결과를 알리지 않는다.
-      } catch let error as HTTPError {
+      } catch let error as SearchError {
         await send(.nextPageResponse(.failure(error)))
       } catch {
         await send(.nextPageResponse(.failure(.unknown)))

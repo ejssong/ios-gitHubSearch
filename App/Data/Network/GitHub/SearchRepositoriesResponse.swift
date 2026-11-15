@@ -1,6 +1,6 @@
 import Foundation
 
-/// `GET /search/repositories` 응답(DTO). `RepositorySearchClient` 안에서만 쓰고 밖으로는 `RepositorySearchPage` 로 바꿔 넘긴다.
+/// `GET /search/repositories` 응답(DTO). `SearchRepository` 구현 안에서만 쓰고 밖으로는 `RepositorySearchPage` 로 바꿔 넘긴다.
 struct SearchRepositoriesResponse: Decodable, Equatable, Sendable {
   let totalCount: Int
   let items: [Item]

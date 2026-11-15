@@ -4,7 +4,7 @@ import Testing
 
 @testable import GitHubSearch
 
-struct RepositorySearchClientTests {
+struct SearchRepositoryLiveTests {
   /// 실제 응답에서 쓰는 필드와 쓰지 않는 필드를 섞은 본문
   private let body = Data(
     """
@@ -39,9 +39,9 @@ struct RepositorySearchClientTests {
 
   @Test
   func searchDecodesTotalCountAndRepositories() async throws {
-    let client = RepositorySearchClient.live(httpClient: HTTPClient(send: { [body] _ in body }))
+    let repository = SearchRepository.live(httpClient: HTTPClient(send: { [body] _ in body }))
 
-    let page = try await client.search("swift", 1)
+    let page = try await repository.search("swift", 1)
 
     #expect(
       page
@@ -64,37 +64,51 @@ struct RepositorySearchClientTests {
   @Test
   func searchSendsSearchRepositoriesRequest() async throws {
     let requests = LockIsolated<[HTTPRequest]>([])
-    let client = RepositorySearchClient.live(
+    let repository = SearchRepository.live(
       httpClient: HTTPClient(send: { [body] request in
         requests.withValue { $0.append(request) }
         return body
       })
     )
 
-    _ = try await client.search("swift ui", 3)
+    _ = try await repository.search("swift ui", 3)
 
     #expect(requests.value == [GitHubAPI.searchRepositories(keyword: "swift ui", page: 3)])
   }
 
-  @Test
-  func searchPassesHTTPErrorThrough() async {
-    let client = RepositorySearchClient.live(
-      httpClient: HTTPClient(send: { _ in throw HTTPError.rateLimited })
-    )
+  /// 통신 오류는 화면에 알릴 이유(`SearchError`)로 바뀌어 나온다.
+  @Test(arguments: [
+    (HTTPError.network, SearchError.network),
+    (HTTPError.rateLimited, SearchError.rateLimited),
+    (HTTPError.invalidRequest, SearchError.unknown),
+    (HTTPError.unknown, SearchError.unknown),
+  ])
+  func searchConvertsHTTPErrorToSearchError(httpError: HTTPError, expected: SearchError) async {
+    let repository = SearchRepository.live(httpClient: HTTPClient(send: { _ in throw httpError }))
 
-    await #expect(throws: HTTPError.rateLimited) {
-      try await client.search("swift", 1)
+    await #expect(throws: expected) {
+      try await repository.search("swift", 1)
     }
   }
 
   @Test
   func searchThrowsUnknownWhenBodyCannotBeDecoded() async {
-    let client = RepositorySearchClient.live(
+    let repository = SearchRepository.live(
       httpClient: HTTPClient(send: { _ in Data(#"{"message":"unexpected"}"#.utf8) })
     )
 
-    await #expect(throws: HTTPError.unknown) {
-      try await client.search("swift", 1)
+    await #expect(throws: SearchError.unknown) {
+      try await repository.search("swift", 1)
+    }
+  }
+
+  /// 취소는 오류로 바꾸지 않고 그대로 넘긴다.
+  @Test
+  func searchPassesCancellationThrough() async {
+    let repository = SearchRepository.live(httpClient: HTTPClient(send: { _ in throw CancellationError() }))
+
+    await #expect(throws: CancellationError.self) {
+      try await repository.search("swift", 1)
     }
   }
 
@@ -103,9 +117,9 @@ struct RepositorySearchClientTests {
     let body = Data(
       #"{"total_count": 1, "items": [{"id": 7, "name": "orphan", "owner": null}]}"#.utf8
     )
-    let client = RepositorySearchClient.live(httpClient: HTTPClient(send: { _ in body }))
+    let repository = SearchRepository.live(httpClient: HTTPClient(send: { _ in body }))
 
-    let page = try await client.search("orphan", 1)
+    let page = try await repository.search("orphan", 1)
 
     #expect(
       page
@@ -122,9 +136,9 @@ struct RepositorySearchClientTests {
       #"{"total_count": 1, "items": [{"id": 8, "name": "blank", "owner": {"login": "someone", "avatar_url": ""}}]}"#
         .utf8
     )
-    let client = RepositorySearchClient.live(httpClient: HTTPClient(send: { _ in body }))
+    let repository = SearchRepository.live(httpClient: HTTPClient(send: { _ in body }))
 
-    let page = try await client.search("blank", 1)
+    let page = try await repository.search("blank", 1)
 
     #expect(
       page.repositories
@@ -138,9 +152,9 @@ struct RepositorySearchClientTests {
       #"{"total_count": 1, "items": [{"id": 9, "name": "blank", "owner": {"login": "someone"}, "html_url": ""}]}"#
         .utf8
     )
-    let client = RepositorySearchClient.live(httpClient: HTTPClient(send: { _ in body }))
+    let repository = SearchRepository.live(httpClient: HTTPClient(send: { _ in body }))
 
-    let page = try await client.search("blank", 1)
+    let page = try await repository.search("blank", 1)
 
     #expect(page.repositories.map(\.htmlURL) == [nil])
   }
@@ -155,20 +169,20 @@ struct RepositorySearchClientTests {
   ])
   func htmlURLIsNilUnlessItIsWebAddress(fields: String) async throws {
     let body = Data(#"{"total_count": 1, "items": [{"id": 1, \#(fields)}]}"#.utf8)
-    let client = RepositorySearchClient.live(httpClient: HTTPClient(send: { _ in body }))
+    let repository = SearchRepository.live(httpClient: HTTPClient(send: { _ in body }))
 
-    let page = try await client.search("a", 1)
+    let page = try await repository.search("a", 1)
 
     #expect(page.repositories.map(\.htmlURL) == [nil])
   }
 
-  /// 기본 클라이언트는 바꿔 끼운 `httpClient` 를 통해 요청한다.
+  /// 기본 구현은 바꿔 끼운 `httpClient` 를 통해 요청한다.
   @Test
   func liveValueUsesHTTPClientDependency() async throws {
     let page = try await withDependencies {
       $0.httpClient.send = { [body] _ in body }
     } operation: {
-      try await RepositorySearchClient.liveValue.search("swift", 1)
+      try await SearchRepository.liveValue.search("swift", 1)
     }
 
     #expect(page.totalCount == 266_714)
