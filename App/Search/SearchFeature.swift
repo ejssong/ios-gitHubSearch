@@ -24,6 +24,14 @@ struct SearchFeature {
       self.result = result
       self.recentSearches = recentSearches
     }
+
+    /// 입력 중에 보여줄 자동완성 후보. 대소문자를 무시하고 앞부분이 검색어와 일치하는 최근 검색어다.
+    /// 검색어가 비어 있거나 결과를 보여주는 중이면 없다. 순서는 최근 검색어와 같은 날짜 내림차순이다.
+    var suggestions: [RecentSearch] {
+      let prefix = query.trimmed.lowercased()
+      guard result == nil, !prefix.isEmpty else { return [] }
+      return recentSearches.filter { $0.keyword.lowercased().hasPrefix(prefix) }
+    }
   }
 
   enum Action {
@@ -33,6 +41,7 @@ struct SearchFeature {
     case recentSearchTapped(RecentSearch)
     case recentSearchDeleteTapped(RecentSearch)
     case recentSearchesClearTapped
+    case suggestionTapped(RecentSearch)
     case result(SearchResultFeature.Action)
   }
 
@@ -63,7 +72,8 @@ struct SearchFeature {
       case .searchSubmitted:
         return search(state.query, state: &state)
 
-      case let .recentSearchTapped(recentSearch):
+      // 최근 검색어든 자동완성이든 고른 검색어로 검색창을 채우고 검색한다.
+      case let .recentSearchTapped(recentSearch), let .suggestionTapped(recentSearch):
         state.query = recentSearch.keyword
         return search(recentSearch.keyword, state: &state)
 

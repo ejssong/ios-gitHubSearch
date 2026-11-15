@@ -34,9 +34,31 @@ struct SearchView: View {
       SearchResultView(store: resultStore)
     } else if store.query.isEmpty, !store.recentSearches.isEmpty {
       recentSearchList
+    } else if !store.suggestions.isEmpty {
+      suggestionList
     } else {
       Color.clear
     }
+  }
+
+  private var suggestionList: some View {
+    List(store.suggestions) { suggestion in
+      Button {
+        store.send(.suggestionTapped(suggestion))
+      } label: {
+        HStack {
+          Text(suggestion.keyword)
+            .lineLimit(1)
+          Spacer()
+          Text(suggestion.searchedDateText())
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+    }
+    .listStyle(.plain)
   }
 
   private var recentSearchList: some View {

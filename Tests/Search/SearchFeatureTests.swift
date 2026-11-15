@@ -362,4 +362,123 @@ struct SearchFeatureTests {
     await receiveSearch(store)
     #expect(callCount.value == 2)
   }
+
+  // MARK: - 자동완성
+
+  private var recentsForSuggestions: [RecentSearch] {
+    [
+      recent("SwiftUI", secondsAgo: 10),
+      recent("tca", secondsAgo: 20),
+      recent("swift", secondsAgo: 30),
+      recent("awesome-swift", secondsAgo: 40),
+    ]
+  }
+
+  /// 앞부분이 일치하는 최근 검색어만, 날짜 내림차순 그대로 나온다. 중간에만 들어 있는 것은 빠진다.
+  @Test
+  func typingShowsRecentSearchesWithMatchingPrefix() async {
+    let store = TestStore(
+      initialState: SearchFeature.State(recentSearches: recentsForSuggestions)
+    ) {
+      SearchFeature()
+    }
+
+    await store.send(.queryChanged("swi")) {
+      $0.query = "swi"
+    }
+    #expect(
+      store.state.suggestions == [recent("SwiftUI", secondsAgo: 10), recent("swift", secondsAgo: 30)]
+    )
+  }
+
+  @Test
+  func suggestionsIgnoreCaseAndSurroundingSpaces() {
+    let state = SearchFeature.State(query: "  SWIFTU ", recentSearches: recentsForSuggestions)
+
+    #expect(state.suggestions == [recent("SwiftUI", secondsAgo: 10)])
+  }
+
+  @Test
+  func suggestionsIncludeExactMatch() {
+    let state = SearchFeature.State(query: "tca", recentSearches: recentsForSuggestions)
+
+    #expect(state.suggestions == [recent("tca", secondsAgo: 20)])
+  }
+
+  @Test
+  func noSuggestionsWhenNothingMatches() {
+    let state = SearchFeature.State(query: "kotlin", recentSearches: recentsForSuggestions)
+
+    #expect(state.suggestions.isEmpty)
+  }
+
+  @Test(arguments: ["", "   "])
+  func noSuggestionsForBlankQuery(query: String) {
+    let state = SearchFeature.State(query: query, recentSearches: recentsForSuggestions)
+
+    #expect(state.suggestions.isEmpty)
+  }
+
+  @Test
+  func noSuggestionsWhileResultIsShown() {
+    let state = SearchFeature.State(
+      query: "swift",
+      result: SearchResultFeature.State(keyword: "swift"),
+      recentSearches: recentsForSuggestions
+    )
+
+    #expect(state.suggestions.isEmpty)
+  }
+
+  /// 결과를 보다가 검색어를 고치면 결과가 닫히고, 방금 검색한 검색어가 후보 맨 위에 나온다.
+  @Test
+  func editingQueryAfterSearchShowsSuggestionsAgain() async {
+    let store = TestStore(
+      initialState: SearchFeature.State(
+        query: "swift",
+        result: SearchResultFeature.State(keyword: "swift", phase: .loaded),
+        recentSearches: [recent("swift", secondsAgo: 0), recent("SwiftUI", secondsAgo: 10)]
+      )
+    ) {
+      SearchFeature()
+    }
+    #expect(store.state.suggestions.isEmpty)
+
+    await store.send(.queryChanged("swif")) {
+      $0.query = "swif"
+      $0.result = nil
+    }
+    #expect(
+      store.state.suggestions == [recent("swift", secondsAgo: 0), recent("SwiftUI", secondsAgo: 10)]
+    )
+  }
+
+  @Test
+  func tappingSuggestionFillsQueryAndSearches() async {
+    let saved = LockIsolated<[[RecentSearch]]>([])
+    let store = TestStore(
+      initialState: SearchFeature.State(query: "sw", recentSearches: recentsForSuggestions)
+    ) {
+      SearchFeature()
+    } withDependencies: {
+      $0.date.now = now
+      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
+      $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
+    }
+
+    let expected = [
+      recent("swift", secondsAgo: 0),
+      recent("SwiftUI", secondsAgo: 10),
+      recent("tca", secondsAgo: 20),
+      recent("awesome-swift", secondsAgo: 40),
+    ]
+    await store.send(.suggestionTapped(recent("swift", secondsAgo: 30))) {
+      $0.query = "swift"
+      $0.result = SearchResultFeature.State(keyword: "swift")
+      $0.recentSearches = expected
+    }
+    await receiveSearch(store)
+    #expect(saved.value == [expected])
+    #expect(store.state.suggestions.isEmpty)
+  }
 }
