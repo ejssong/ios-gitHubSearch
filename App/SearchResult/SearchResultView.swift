@@ -2,13 +2,23 @@ import ComposableArchitecture
 import SwiftUI
 
 struct SearchResultView: View {
-  let store: StoreOf<SearchResultFeature>
+  @Bindable var store: StoreOf<SearchResultFeature>
 
   init(store: StoreOf<SearchResultFeature>) {
     self.store = store
   }
 
   var body: some View {
+    content
+      .navigationDestination(
+        item: $store.scope(state: \.webPage, action: \.webPage)
+      ) { webPageStore in
+        RepositoryWebView(store: webPageStore)
+      }
+  }
+
+  @ViewBuilder
+  private var content: some View {
     if let notice = store.notice {
       ContentUnavailableView {
         Text(notice)
@@ -25,7 +35,12 @@ struct SearchResultView: View {
       List {
         Section {
           ForEach(store.repositories) { repository in
-            RepositoryRow(repository: repository)
+            Button {
+              store.send(.repositoryTapped(repository))
+            } label: {
+              RepositoryRow(repository: repository)
+            }
+            .buttonStyle(.plain)
           }
         } header: {
           Text(store.totalCountText)
@@ -62,5 +77,8 @@ private struct RepositoryRow: View {
           .lineLimit(1)
       }
     }
+    // 글자가 없는 빈 곳을 눌러도 행이 선택되게 한다.
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .contentShape(Rectangle())
   }
 }

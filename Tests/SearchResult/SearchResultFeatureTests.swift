@@ -196,6 +196,128 @@ struct SearchResultFeatureTests {
     #expect(callCount.value == 2)
   }
 
+  // MARK: - 저장소 선택
+
+  private let swift = RepositoryItem(
+    id: 1, name: "swift", ownerLogin: "apple", avatarURL: nil,
+    htmlURL: URL(string: "https://github.com/apple/swift")
+  )
+
+  private var swiftPage: RepositoryWebFeature.State {
+    RepositoryWebFeature.State(url: URL(string: "https://github.com/apple/swift")!, title: "swift")
+  }
+
+  @Test
+  func tappingRepositoryOpensItsPage() async {
+    let store = TestStore(
+      initialState: SearchResultFeature.State(
+        keyword: "swift", phase: .loaded, repositories: [swift], totalCount: 1
+      )
+    ) {
+      SearchResultFeature()
+    }
+
+    await store.send(.repositoryTapped(swift)) {
+      $0.webPage = RepositoryWebFeature.State(
+        url: URL(string: "https://github.com/apple/swift")!, title: "swift"
+      )
+    }
+  }
+
+  @Test
+  func tappingRepositoryWithoutPageURLDoesNothing() async {
+    let noPage = RepositoryItem(id: 2, name: "orphan", ownerLogin: "", avatarURL: nil)
+    let store = TestStore(
+      initialState: SearchResultFeature.State(
+        keyword: "swift", phase: .loaded, repositories: [noPage], totalCount: 1
+      )
+    ) {
+      SearchResultFeature()
+    }
+
+    await store.send(.repositoryTapped(noPage))
+  }
+
+  /// 두 행을 거의 동시에 눌러도 먼저 연 페이지가 유지된다.
+  @Test
+  func tappingAnotherRepositoryWhilePageIsOpenDoesNothing() async {
+    let other = RepositoryItem(
+      id: 3, name: "swift-nio", ownerLogin: "apple", avatarURL: nil,
+      htmlURL: URL(string: "https://github.com/apple/swift-nio")
+    )
+    let store = TestStore(
+      initialState: SearchResultFeature.State(
+        keyword: "swift", phase: .loaded, repositories: [swift, other], totalCount: 2,
+        webPage: swiftPage
+      )
+    ) {
+      SearchResultFeature()
+    }
+
+    await store.send(.repositoryTapped(other))
+  }
+
+  @Test
+  func goingBackClosesPage() async {
+    let store = TestStore(
+      initialState: SearchResultFeature.State(
+        keyword: "swift", phase: .loaded, repositories: [swift], totalCount: 1,
+        webPage: swiftPage
+      )
+    ) {
+      SearchResultFeature()
+    }
+
+    await store.send(.webPage(.dismiss)) {
+      $0.webPage = nil
+    }
+  }
+
+  /// push 된 화면의 액션은 그 화면의 상태에 반영된다.
+  @Test
+  func pageActionsUpdatePageState() async {
+    let store = TestStore(
+      initialState: SearchResultFeature.State(
+        keyword: "swift", phase: .loaded, repositories: [swift], totalCount: 1,
+        webPage: swiftPage
+      )
+    ) {
+      SearchResultFeature()
+    }
+
+    await store.send(.webPage(.presented(.pageLoadFinished))) {
+      $0.webPage?.isLoading = false
+    }
+  }
+
+  @Test
+  func retryClosesPage() async {
+    let store = TestStore(
+      initialState: SearchResultFeature.State(
+        keyword: "swift", phase: .loaded, repositories: [swift], totalCount: 1,
+        webPage: swiftPage
+      )
+    ) {
+      SearchResultFeature()
+    } withDependencies: {
+      $0.repositorySearchClient.search = { [swift] _, _ in
+        RepositorySearchPage(totalCount: 1, repositories: [swift])
+      }
+    }
+
+    await store.send(.retryTapped) {
+      $0.phase = .loading
+      $0.repositories = []
+      $0.totalCount = 0
+      $0.webPage = nil
+    }
+    await store.receive(\.searchResponse.success) {
+      $0.phase = .loaded
+      $0.repositories = [swift]
+      $0.totalCount = 1
+    }
+  }
+
   @Test
   func totalCountTextGroupsDigits() {
     #expect(SearchResultFeature.State(keyword: "a", totalCount: 0).totalCountText == "0개 저장소")

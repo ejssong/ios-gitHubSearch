@@ -214,3 +214,38 @@ Xcode 에서 패키지 구조를 확인한 뒤 보낸 프롬프트입니다.
 - 이슈 #4 결정 사항에 검색 시작 방식, 역할 구분, 인증 없음, 폴더 구성을 추가
 - 리뷰에서 검색어의 `+` 가 공백으로 검색되는 문제(`c++` → `c`)를 발견. `HTTPClient` 가 쿼리의 `+` 를 `%2B` 로 보내도록 함께 수정
 - 시뮬레이터에서 직접 눌러 보는 확인은 하지 않음
+
+## 10. WebView 이동 (#5)
+
+> /start-issue 5
+
+계획과 질문 네 가지를 받은 뒤 보낸 프롬프트입니다.
+
+> 1. A로
+> 2. A로
+> 3. 네
+> 4. 네 진행해주세요
+
+구현을 마친 뒤 보낸 프롬프트입니다.
+
+> WebView 도 SearchResult/WebView 로  View / Feature 로 명확히 구분해줘.
+
+> /finish-issue
+
+커밋에 들어갈 내용을 확인하며 보낸 프롬프트입니다.
+
+> 네 진행해주세요
+
+> 네
+
+**구현 요소**
+- WebView 화면을 `App/SearchResult/WebView` 에 `RepositoryWebFeature` (주소, 제목, 불러오는 중인지) 와 `RepositoryWebView` (`WKWebView` 를 감싸고 시작·끝을 액션으로 알림) 로 나눔. 처음에는 로딩 상태를 뷰의 `@State` 로 둔 화면 하나였음
+- 이동은 `SearchResultFeature` 의 `@Presents var webPage` 로 연결. 행을 누르면 `repositoryTapped`, 뒤로 가면 `webPage(.dismiss)`, 다시 검색하면 닫힘
+- 주소는 응답의 `html_url`. `http`/`https` 이고 host 가 있는 주소만 받아들이고, 주소가 없는 항목은 눌러도 이동하지 않음
+- 로딩 표시는 콜백 종류가 아니라 웹뷰의 현재 상태(`isLoading`)를 따름. 링크를 연달아 누르거나 웹 콘텐츠 프로세스가 죽는 경우에 표시가 어긋나던 것을 리뷰 지적으로 고침
+- `.claude/agents/reviewer.md` 의 의존 방향을 `Search` → `SearchResult` → `API` → `Core` 로 수정
+
+**결과**
+- 시뮬레이터 빌드 성공, 테스트 64개 통과
+- 이슈 #5 결정 사항에 이동 방식, 폴더 구성, 주소 처리, 로딩 표시를 추가
+- WebView 화면(push, 페이지 표시, 로딩 표시, 뒤로 가기)은 시뮬레이터에서 확인하지 않음

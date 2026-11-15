@@ -52,7 +52,8 @@ struct RepositorySearchClientTests {
               id: 44_838_949,
               name: "swift",
               ownerLogin: "apple",
-              avatarURL: URL(string: "https://avatars.githubusercontent.com/u/10639145?v=4")
+              avatarURL: URL(string: "https://avatars.githubusercontent.com/u/10639145?v=4"),
+              htmlURL: URL(string: "https://github.com/apple/swift")
             ),
             RepositoryItem(id: 790_019, name: "SwiftyJSON", ownerLogin: "SwiftyJSON", avatarURL: nil),
           ]
@@ -129,6 +130,36 @@ struct RepositorySearchClientTests {
       page.repositories
         == [RepositoryItem(id: 8, name: "blank", ownerLogin: "someone", avatarURL: nil)]
     )
+  }
+
+  @Test
+  func htmlURLThatCannotBeParsedBecomesNil() async throws {
+    let body = Data(
+      #"{"total_count": 1, "items": [{"id": 9, "name": "blank", "owner": {"login": "someone"}, "html_url": ""}]}"#
+        .utf8
+    )
+    let client = RepositorySearchClient.live(httpClient: HTTPClient(send: { _ in body }))
+
+    let page = try await client.search("blank", 1)
+
+    #expect(page.repositories.map(\.htmlURL) == [nil])
+  }
+
+  /// `html_url` 이 없거나 `null` 이거나 웹 주소가 아니면 `htmlURL` 은 `nil` 이다.
+  @Test(arguments: [
+    #""name": "a""#,
+    #""name": "a", "html_url": null"#,
+    #""name": "a", "html_url": "github.com/apple/swift""#,
+    #""name": "a", "html_url": "file:///etc/hosts""#,
+    #""name": "a", "html_url": "abc def""#,
+  ])
+  func htmlURLIsNilUnlessItIsWebAddress(fields: String) async throws {
+    let body = Data(#"{"total_count": 1, "items": [{"id": 1, \#(fields)}]}"#.utf8)
+    let client = RepositorySearchClient.live(httpClient: HTTPClient(send: { _ in body }))
+
+    let page = try await client.search("a", 1)
+
+    #expect(page.repositories.map(\.htmlURL) == [nil])
   }
 
   /// 기본 클라이언트는 바꿔 끼운 `httpClient` 를 통해 요청한다.
