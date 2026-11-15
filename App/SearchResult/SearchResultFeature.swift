@@ -13,17 +13,21 @@ struct SearchResultFeature {
     var repositories: [RepositoryItem]
     /// 검색어에 맞는 전체 저장소 수
     var totalCount: Int
+    /// 눌러서 고른 저장소의 페이지. `nil` 이 아니면 WebView 화면이 push 되어 있다.
+    @Presents var webPage: RepositoryWebFeature.State?
 
     init(
       keyword: String,
       phase: Phase = .loading,
       repositories: [RepositoryItem] = [],
-      totalCount: Int = 0
+      totalCount: Int = 0,
+      webPage: RepositoryWebFeature.State? = nil
     ) {
       self.keyword = keyword
       self.phase = phase
       self.repositories = repositories
       self.totalCount = totalCount
+      self.webPage = webPage
     }
 
     /// 예: "266,714개 저장소". 기기 설정과 상관없이 세 자리마다 쉼표를 찍는다.
@@ -62,6 +66,9 @@ struct SearchResultFeature {
     case searchRequested
     case retryTapped
     case searchResponse(Result<RepositorySearchPage, HTTPError>)
+    case repositoryTapped(RepositoryItem)
+    /// push 된 WebView 화면의 액션. 뒤로 가면 `.dismiss` 가 온다.
+    case webPage(PresentationAction<RepositoryWebFeature.Action>)
   }
 
   private enum CancelID { case search }
@@ -77,6 +84,7 @@ struct SearchResultFeature {
         state.phase = .loading
         state.repositories = []
         state.totalCount = 0
+        state.webPage = nil
         return .run { [keyword = state.keyword] send in
           do {
             let page = try await repositorySearchClient.search(keyword, 1)
@@ -100,7 +108,20 @@ struct SearchResultFeature {
       case let .searchResponse(.failure(error)):
         state.phase = .failed(error)
         return .none
+
+      case let .repositoryTapped(repository):
+        // 보여줄 주소가 없는 항목은 이동하지 않는다.
+        // 이미 페이지가 열려 있으면 바꾸지 않는다. 두 행을 동시에 누르면 제목과 내용이 어긋날 수 있다.
+        guard state.webPage == nil, let url = repository.htmlURL else { return .none }
+        state.webPage = RepositoryWebFeature.State(url: url, title: repository.name)
+        return .none
+
+      case .webPage:
+        return .none
       }
+    }
+    .ifLet(\.$webPage, action: \.webPage) {
+      RepositoryWebFeature()
     }
   }
 }

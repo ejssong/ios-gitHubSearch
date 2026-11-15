@@ -10,6 +10,12 @@ struct SearchRepositoriesResponse: Decodable, Equatable, Sendable {
     let name: String
     /// API 명세상 `null` 일 수 있다.
     let owner: Owner?
+    let htmlURL: String?
+
+    enum CodingKeys: String, CodingKey {
+      case id, name, owner
+      case htmlURL = "html_url"
+    }
   }
 
   struct Owner: Decodable, Equatable, Sendable {
@@ -29,6 +35,16 @@ struct SearchRepositoriesResponse: Decodable, Equatable, Sendable {
 }
 
 extension SearchRepositoriesResponse {
+  /// WebView 로 열 수 있는 주소만 남긴다. `URL(string:)` 은 scheme 이 없거나 `file:` 인 문자열도 받아들이기 때문이다.
+  private static func webPageURL(_ string: String) -> URL? {
+    guard
+      let url = URL(string: string),
+      let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
+      url.host() != nil
+    else { return nil }
+    return url
+  }
+
   var page: RepositorySearchPage {
     RepositorySearchPage(
       totalCount: totalCount,
@@ -38,7 +54,8 @@ extension SearchRepositoriesResponse {
           name: item.name,
           // 소유자가 없는 항목 하나 때문에 페이지 전체를 버리지 않고, 설명과 썸네일만 비운다.
           ownerLogin: item.owner?.login ?? "",
-          avatarURL: item.owner?.avatarURL.flatMap(URL.init(string:))
+          avatarURL: item.owner?.avatarURL.flatMap(URL.init(string:)),
+          htmlURL: item.htmlURL.flatMap(Self.webPageURL)
         )
       }
     )
