@@ -19,16 +19,16 @@ GitHub 저장소 검색 iOS 앱 과제입니다. 요구사항은 [docs/requireme
 | `App/Feature/WebView` | 저장소 페이지 화면 |
 | `App/Domain/Entities` | 화면과 저장소가 주고받는 모델과 오류 (`RepositoryItem`, `RepositorySearchPage`, `RecentSearch`, `SearchError`) |
 | `App/Domain/Repositories` | 저장소 인터페이스. `@DependencyClient` 선언과 `testValue` (`SearchRepository`, `RecentSearchRepository`) |
-| `App/Data/Network` | 범용 HTTP 통신 (`HTTPClient`, `HTTPRequest`, `HTTPError`). GitHub 을 모른다 |
-| `App/Data/Network/GitHub` | GitHub API 요청(`GitHubAPI`), 응답 DTO, `SearchRepository` 의 구현(`liveValue`) |
+| `App/Data/Network` | 통신 계층의 공통 약속. `APIClientProtocol` (GET 요청을 보내고 응답을 해석), `HTTPError` |
+| `App/Data/Network/Search` | 검색 API. 서버 주소·공통 헤더와 실제 전송(`SearchAPIClient`), 검색 endpoint(`searchRepositories(keyword:page:)`), 응답 DTO, `SearchRepository` 의 구현(`liveValue`) |
 | `App/Data/UserDefaults` | `RecentSearchRepository` 의 구현(`liveValue`) |
 
 - 의존 방향은 `Feature` → `Domain` ← `Data` 다. 컴파일러가 막아 주지 않으므로 규칙으로 지킨다.
   - `Domain` 은 `Feature`, `Data` 를 참조하지 않는다.
-  - `Feature` 는 `Data` 를 참조하지 않는다. (`HTTPClient`, `HTTPError`, `GitHubAPI`, DTO 를 쓰지 않는다)
+  - `Feature` 는 `Data` 를 참조하지 않는다. (`APIClientProtocol`, `SearchAPIClient`, `HTTPError`, DTO 를 쓰지 않는다)
   - `Feature` 끼리는 `Search` → `SearchResult` → `WebView` 방향으로만 참조한다.
 - 저장소는 선언과 `testValue` 를 `Domain/Repositories` 에, `liveValue` 를 `Data` 에 둔다.
-- endpoint(경로, 쿼리)는 `GitHubAPI` 에 모은다. 응답 모델(DTO)은 `Data` 밖으로 내보내지 않고 `Domain` 모델로 바꿔 넘긴다.
+- 전송은 `APIClientProtocol` 을 채택한 `SearchAPIClient` 가 하고, endpoint(경로, 쿼리)는 `APIClientProtocol` 확장의 메서드로 `SearchAPIClient.swift` 에 둔다. 저장소 구현은 프로토콜만 보고, 테스트에서는 가짜 구현으로 바꿔 끼운다. 응답 모델(DTO)은 `Data` 밖으로 내보내지 않고 `Domain` 모델로 바꿔 넘긴다.
 - UseCase 계층은 두지 않는다. 리듀서가 그 역할을 한다.
 - 파일은 `App/` 이나 `Tests/` 아래에 넣기만 하면 타깃에 포함된다. `project.pbxproj` 는 직접 고치지 않는다. 꼭 고쳐야 하면 Xcode 를 닫고 한다. (열려 있으면 Xcode 가 덮어쓴다.)
 
@@ -38,7 +38,7 @@ GitHub 저장소 검색 iOS 앱 과제입니다. 요구사항은 [docs/requireme
 - 액션 이름은 일어난 일을 적는다. (`queryChanged`, `searchSubmitted`)
 - 리듀서에서 `URLSession`, `UserDefaults`, 현재 시각 같은 외부 세계를 직접 쓰지 않는다. `@DependencyClient` 로 감싸거나 TCA 가 제공하는 의존성을 주입받는다.
 - 자식 Feature 는 `Scope`, `ifLet` 로 합성한다.
-- HTTP 오류는 `HTTPClient` 가 `HTTPError` 로 바꾸고, `Data` 의 저장소 구현이 다시 `SearchError` 로 바꿔 넘긴다. Feature 는 `SearchError` 만 보고, 안내 문구는 `SearchError.message` 가 정한다.
+- HTTP 오류는 `SearchAPIClient` 가 `HTTPError` 로 바꾸고, `Data` 의 저장소 구현이 다시 `SearchError` 로 바꿔 넘긴다. Feature 는 `SearchError` 만 보고, 안내 문구는 `SearchError.message` 가 정한다.
 
 ## 테스트
 

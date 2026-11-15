@@ -3,15 +3,13 @@ import Foundation
 
 /// GitHub 검색 API 로 `SearchRepository` 를 구현한다.
 ///
-/// - 요청은 `GitHubAPI` 가 만들고, 전송과 `HTTPError` 변환은 `HTTPClient` 가 한다.
+/// - 경로와 쿼리는 `APIClientProtocol.searchRepositories(keyword:page:)` 가 정하고, 전송과 `HTTPError` 변환은 그 구현(`SearchAPIClient`)이 한다.
 /// - 여기서는 응답(DTO)을 `RepositorySearchPage` 로, `HTTPError` 를 `SearchError` 로 바꿔 넘긴다.
 extension SearchRepository {
-  static func live(httpClient: HTTPClient) -> Self {
+  static func live(apiClient: some APIClientProtocol) -> Self {
     Self(search: { keyword, page in
       do {
-        let request = GitHubAPI.searchRepositories(keyword: keyword, page: page)
-        let response: SearchRepositoriesResponse = try await httpClient.send(request)
-        return response.page
+        return try await apiClient.searchRepositories(keyword: keyword, page: page).page
       } catch let error as HTTPError {
         throw SearchError(error)
       }
@@ -35,9 +33,5 @@ extension SearchError {
 }
 
 extension SearchRepository: DependencyKey {
-  /// 호출할 때의 `httpClient` 의존성을 쓴다. HTTP 계층만 바꿔 끼워도 반영된다.
-  static let liveValue = SearchRepository(search: { keyword, page in
-    @Dependency(\.httpClient) var httpClient
-    return try await live(httpClient: httpClient).search(keyword, page)
-  })
+  static let liveValue = SearchRepository.live(apiClient: SearchAPIClient())
 }
