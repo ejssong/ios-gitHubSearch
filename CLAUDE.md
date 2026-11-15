@@ -14,11 +14,13 @@ GitHub 저장소 검색 iOS 앱 과제입니다. 요구사항은 [docs/requireme
 | 폴더 | 역할 |
 |---|---|
 | `App/Search` | 검색어 입력, 최근 검색어 저장/삭제, 검색 실행 전달 |
-| `App/SearchResult` | 검색 API/DTO, 결과, 로딩, 오류, 페이지 상태 |
+| `App/SearchResult` | 검색 클라이언트/DTO, 결과, 로딩, 오류, 페이지 상태 |
 | `App/Core` | 범용 클라이언트. 지금은 `Network` 의 `HTTPClient` |
+| `App/API` | GitHub API 요청을 만든다. 서버 주소, 공통 헤더, 각 endpoint 의 경로와 쿼리 (`GitHubAPI`) |
 
-- 의존 방향은 `Search` → `SearchResult` → `Core` 다. 컴파일러가 막아 주지 않으므로 반대 방향으로 참조하지 않는다.
-- endpoint 와 응답 모델(DTO)은 `Core` 가 아니라 그것을 쓰는 Feature 폴더에 둔다.
+- 의존 방향은 `Search` → `SearchResult` → `API` → `Core` 다. 컴파일러가 막아 주지 않으므로 반대 방향으로 참조하지 않는다.
+- endpoint(경로, 쿼리)는 `App/API` 의 `GitHubAPI` 에 모은다. 응답 모델(DTO)은 그것을 쓰는 Feature 폴더에 둔다.
+- `Core` 는 GitHub 을 모른다. `API` 와 Feature 를 참조하지 않는다.
 - 파일은 `App/` 이나 `Tests/` 아래에 넣기만 하면 타깃에 포함된다. `project.pbxproj` 는 직접 고치지 않는다. 꼭 고쳐야 하면 Xcode 를 닫고 한다. (열려 있으면 Xcode 가 덮어쓴다.)
 
 ## TCA 규칙
