@@ -17,6 +17,7 @@ struct SearchFeatureTests {
     await store.receive(\.result.searchRequested)
     await store.receive(\.result.searchResponse.success) {
       $0.result?.phase = .loaded
+      $0.result?.loadedPageCount = 1
     }
   }
 
@@ -308,6 +309,7 @@ struct SearchFeatureTests {
       $0.result?.phase = .loaded
       $0.result?.repositories = [repository]
       $0.result?.totalCount = 1
+      $0.result?.loadedPageCount = 1
     }
   }
 

@@ -19,34 +19,75 @@ struct SearchResultView: View {
 
   @ViewBuilder
   private var content: some View {
-    if let notice = store.notice {
-      ContentUnavailableView {
-        Text(notice)
-          .font(.body)
-      } actions: {
-        Button("다시 시도") {
-          store.send(.retryTapped)
-        }
-      }
-    } else if store.phase == .loading {
+    switch store.phase {
+    case .loading:
       ProgressView()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    } else {
-      List {
-        Section {
-          ForEach(store.repositories) { repository in
-            Button {
-              store.send(.repositoryTapped(repository))
-            } label: {
-              RepositoryRow(repository: repository)
-            }
-            .buttonStyle(.plain)
-          }
-        } header: {
-          Text(store.totalCountText)
-        }
+    case .loaded where store.repositories.isEmpty, .failed:
+      noticeView
+    case .loaded:
+      repositoryList
+    }
+  }
+
+  /// 결과가 없거나 불러오지 못했을 때 목록 자리에 보여주는 안내와 "다시 시도"
+  private var noticeView: some View {
+    ContentUnavailableView {
+      Text(store.notice ?? "")
+        .font(.body)
+    } actions: {
+      Button("다시 시도") {
+        store.send(.retryTapped)
       }
-      .listStyle(.plain)
+    }
+  }
+
+  private var repositoryList: some View {
+    List {
+      Section {
+        ForEach(store.repositories) { repository in
+          Button {
+            store.send(.repositoryTapped(repository))
+          } label: {
+            RepositoryRow(repository: repository)
+          }
+          .buttonStyle(.plain)
+          .onAppear {
+            store.send(.repositoryAppeared(repository.id))
+          }
+        }
+        nextPageFooter
+      } header: {
+        Text(store.totalCountText)
+      }
+    }
+    .listStyle(.plain)
+  }
+}
+
+extension SearchResultView {
+  /// 목록 맨 아래. 다음 페이지를 불러오는 중이면 로딩 표시, 실패했으면 안내와 "다시 시도".
+  @ViewBuilder
+  fileprivate var nextPageFooter: some View {
+    if store.nextPagePhase == .loading {
+      ProgressView()
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        // 행이 재사용되면 멈춘 채로 보일 수 있어 페이지마다 새로 만든다.
+        .id(store.loadedPageCount)
+        .listRowSeparator(.hidden)
+    } else if let notice = store.nextPageNotice {
+      HStack {
+        Text(notice)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+        Spacer()
+        Button("다시 시도") {
+          store.send(.nextPageRetryTapped)
+        }
+        .buttonStyle(.borderless)
+      }
+      .listRowSeparator(.hidden)
     }
   }
 }
