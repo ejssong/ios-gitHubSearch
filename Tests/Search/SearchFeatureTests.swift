@@ -12,6 +12,14 @@ struct SearchFeatureTests {
     RecentSearch(keyword: keyword, searchedAt: now.addingTimeInterval(-secondsAgo))
   }
 
+  /// 검색을 실행하면 결과 영역에 요청이 전달되고 응답이 돌아온다.
+  private func receiveSearch(_ store: TestStoreOf<SearchFeature>) async {
+    await store.receive(\.result.searchRequested)
+    await store.receive(\.result.searchResponse.success) {
+      $0.result?.phase = .loaded
+    }
+  }
+
   @Test
   func typingDoesNotSearch() async {
     let store = TestStore(initialState: SearchFeature.State()) {
@@ -29,6 +37,7 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
+      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchClient.save = { _ in }
     }
 
@@ -36,6 +45,7 @@ struct SearchFeatureTests {
       $0.result = SearchResultFeature.State(keyword: "swift")
       $0.recentSearches = [RecentSearch(keyword: "swift", searchedAt: now)]
     }
+    await receiveSearch(store)
   }
 
   @Test
@@ -122,6 +132,7 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
+      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
@@ -130,6 +141,7 @@ struct SearchFeatureTests {
       $0.result = SearchResultFeature.State(keyword: "swift")
       $0.recentSearches = expected
     }
+    await receiveSearch(store)
     #expect(saved.value == [expected])
   }
 
@@ -144,6 +156,7 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
+      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchClient.save = { _ in }
     }
 
@@ -151,6 +164,7 @@ struct SearchFeatureTests {
       $0.result = SearchResultFeature.State(keyword: "SwiftUI")
       $0.recentSearches = [recent("SwiftUI", secondsAgo: 0), recent("tca", secondsAgo: 10)]
     }
+    await receiveSearch(store)
   }
 
   @Test
@@ -163,6 +177,7 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
+      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
@@ -171,6 +186,7 @@ struct SearchFeatureTests {
       $0.result = SearchResultFeature.State(keyword: "swift")
       $0.recentSearches = expected
     }
+    await receiveSearch(store)
     #expect(saved.value.last?.count == 10)
     #expect(saved.value == [expected])
   }
@@ -186,6 +202,7 @@ struct SearchFeatureTests {
       SearchFeature()
     } withDependencies: {
       $0.date.now = now
+      $0.repositorySearchClient.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchClient.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
@@ -195,6 +212,7 @@ struct SearchFeatureTests {
       $0.result = SearchResultFeature.State(keyword: "swift")
       $0.recentSearches = expected
     }
+    await receiveSearch(store)
     #expect(saved.value == [expected])
   }
 
@@ -257,5 +275,91 @@ struct SearchFeatureTests {
       $0.recentSearches = []
     }
     #expect(saved.value == [[recent("swift", secondsAgo: 20)], []])
+  }
+
+  /// 결과가 떠 있는 상태에서 같은 검색어를 다시 제출해도 처음부터 다시 검색한다.
+  @Test
+  func submittingSameKeywordSearchesAgain() async {
+    let repository = RepositoryItem(id: 1, name: "swift", ownerLogin: "apple", avatarURL: nil)
+    let store = TestStore(
+      initialState: SearchFeature.State(
+        query: "swift",
+        result: SearchResultFeature.State(
+          keyword: "swift", phase: .loaded, repositories: [repository], totalCount: 1
+        ),
+        recentSearches: [recent("swift", secondsAgo: 10)]
+      )
+    ) {
+      SearchFeature()
+    } withDependencies: {
+      $0.date.now = now
+      $0.recentSearchClient.save = { _ in }
+      $0.repositorySearchClient.search = { _, _ in
+        RepositorySearchPage(totalCount: 1, repositories: [repository])
+      }
+    }
+
+    await store.send(.searchSubmitted) {
+      $0.result = SearchResultFeature.State(keyword: "swift")
+      $0.recentSearches = [recent("swift", secondsAgo: 0)]
+    }
+    await store.receive(\.result.searchRequested)
+    await store.receive(\.result.searchResponse.success) {
+      $0.result?.phase = .loaded
+      $0.result?.repositories = [repository]
+      $0.result?.totalCount = 1
+    }
+  }
+
+  /// 응답이 오기 전에 검색어를 지우면 요청이 취소되고 결과가 반영되지 않는다.
+  @Test
+  func clearingQueryWhileSearchingCancelsRequest() async {
+    let store = TestStore(initialState: SearchFeature.State(query: "swift")) {
+      SearchFeature()
+    } withDependencies: {
+      $0.date.now = now
+      $0.recentSearchClient.save = { _ in }
+      $0.repositorySearchClient.search = { _, _ in try await Task.never() }
+    }
+
+    await store.send(.searchSubmitted) {
+      $0.result = SearchResultFeature.State(keyword: "swift")
+      $0.recentSearches = [recent("swift", secondsAgo: 0)]
+    }
+    await store.receive(\.result.searchRequested)
+    await store.send(.queryChanged("")) {
+      $0.query = ""
+      $0.result = nil
+    }
+    // 남은 effect 가 있으면 TestStore 가 실패로 알린다.
+  }
+
+  /// 응답이 오기 전에 같은 검색어를 다시 제출하면 앞선 요청은 취소되고 마지막 요청만 반영된다.
+  @Test
+  func resubmittingWhileSearchingKeepsOnlyLastRequest() async {
+    let callCount = LockIsolated(0)
+    let store = TestStore(initialState: SearchFeature.State(query: "swift")) {
+      SearchFeature()
+    } withDependencies: {
+      $0.date.now = now
+      $0.recentSearchClient.save = { _ in }
+      $0.repositorySearchClient.search = { _, _ in
+        let call = callCount.withValue { count in
+          count += 1
+          return count
+        }
+        if call == 1 { try await Task.never() }
+        return RepositorySearchPage(totalCount: 0, repositories: [])
+      }
+    }
+
+    await store.send(.searchSubmitted) {
+      $0.result = SearchResultFeature.State(keyword: "swift")
+      $0.recentSearches = [recent("swift", secondsAgo: 0)]
+    }
+    await store.receive(\.result.searchRequested)
+    await store.send(.searchSubmitted)
+    await receiveSearch(store)
+    #expect(callCount.value == 2)
   }
 }

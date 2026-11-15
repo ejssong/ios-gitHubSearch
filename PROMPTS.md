@@ -168,3 +168,49 @@ Xcode 에서 패키지 구조를 확인한 뒤 보낸 프롬프트입니다.
 - 시뮬레이터 빌드 성공, 테스트 31개 통과 (`SearchFeatureTests` 14개, `RecentSearchClientTests` 3개, `RecentSearchTests` 2개)
 - 이슈 #3 결정 사항에 날짜 표시와 저장 방식을 추가
 - 시뮬레이터에서 직접 눌러 보는 확인은 하지 않음
+
+## 9. 결과 목록과 총 결과 수 (#4)
+
+#3 의 커밋·PR 계획을 확인한 뒤 보낸 프롬프트입니다.
+
+> 네 진행해주세요
+
+> /start-issue 4
+
+계획과 질문 세 가지를 받은 뒤 보낸 프롬프트입니다.
+
+> 1. A로
+> 2. B로 진행. 전체적인 요구사항을 봤을 때는 호출 하나뿐이라 리듀서가 httpClient 하나로 쓰는 것도 가능하지만, 확장성이랑 책임분리를 생각했을 때 B로 진행하는게 좋을 것 같은데 의견 줘. 대신 확실하게 해야할 건 SearchResultFeature / RepositorySearchClient / HTTPClient 의 역할을 정확하게 구분해줘. 
+> 3. 인증 없이 진행
+
+구현과 리뷰 반영을 마친 뒤, 서버 주소와 요청 정의의 위치를 정리하며 보낸 프롬프트입니다.
+
+> 지금 서버 주소 & 공통 해더가 feature 내부에 있는데 이걸 App/Configuration 으로 빼고
+> SearchResult/API 내에 실제 Endpoint 와 Response 를 위치하는건 어떨까?
+
+> SearchRepositoriesEndpoint 내에는 아직 extension HTTPRequest가 남아 있어, 전용 Endpoint 타입으로 바꾸고 싶어.
+
+> path 랑 queryItem 도 GitHubAPI 에서 관리하는건 어때?
+> 그럼 검색 클라이언트에서도 GitHubAPI.searchRepositoreis(keyword: , page ) 로 단순해질 것 같은데 Configuration 을 App/API/GitHubAPI 로
+
+> /finish-issue
+
+커밋 전 확인에서 리뷰가 찾은 `+` 문제를 물은 뒤, 이 PR 에 포함하기로 하며 보낸 프롬프트입니다.
+
+> + 문제는 뭐야?
+
+> B 로 진행해주세요
+
+**구현 요소**
+- 역할을 네 곳으로 나눔: `GitHubAPI` (서버 주소, 공통 헤더, 경로와 쿼리로 요청 생성), `HTTPClient` (전송, `HTTPError` 변환), `RepositorySearchClient` (요청 실행, DTO → `RepositoryItem` 변환), `SearchResultFeature` (요청 시점과 취소, 로딩·성공·실패 상태, 안내 문구)
+- 요청 정의의 위치는 `SearchResult` 안 → `App/Configuration` + 전용 Endpoint 타입 → `App/API/GitHubAPI` 순으로 바꿈. 이 규모에서는 요청을 한곳에 모으는 쪽이 단순하다고 판단
+- 검색은 `SearchFeature` 가 결과 상태를 만든 직후 `.result(.searchRequested)` 로 시작. 같은 검색어를 다시 제출해도 다시 검색하고, 진행 중이던 요청은 취소
+- 화면은 총 결과 수(`266,714개 저장소`), 썸네일(`AsyncImage`)·제목·설명 목록, 첫 로딩 표시, 빈 결과와 오류 안내에 "다시 시도" 버튼
+- 리뷰 반영: 응답 전 검색어를 지우거나 다시 제출하는 경우의 취소 테스트, `owner` 가 `null` 인 항목 허용, 기본 클라이언트가 호출 시점의 `httpClient` 를 쓰도록 변경
+- `CLAUDE.md` 구조 표에 `App/API` 를 추가하고 의존 방향을 `Search` → `SearchResult` → `API` → `Core` 로 수정
+
+**결과**
+- 시뮬레이터 빌드 성공, 테스트 53개 통과
+- 이슈 #4 결정 사항에 검색 시작 방식, 역할 구분, 인증 없음, 폴더 구성을 추가
+- 리뷰에서 검색어의 `+` 가 공백으로 검색되는 문제(`c++` → `c`)를 발견. `HTTPClient` 가 쿼리의 `+` 를 `%2B` 로 보내도록 함께 수정
+- 시뮬레이터에서 직접 눌러 보는 확인은 하지 않음

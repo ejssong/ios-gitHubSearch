@@ -36,6 +36,23 @@ struct HTTPClientTests {
     #expect(sent.value(forHTTPHeaderField: "Accept") == "application/json")
   }
 
+  /// 서버는 쿼리의 `+` 를 공백으로 읽으므로 `%2B` 로 보내야 한다.
+  @Test
+  func plusInQueryValueIsPercentEncoded() async throws {
+    let client = client("/plus", .response(statusCode: 200))
+    var request = request("/plus")
+    request.queryItems = [URLQueryItem(name: "q", value: "c++ a&b"), URLQueryItem(name: "page", value: "1")]
+
+    _ = try await client.send(request)
+
+    let sent = try #require(StubURLProtocol.lastRequest(path: "/plus"))
+    #expect(sent.url?.query(percentEncoded: true) == "q=c%2B%2B%20a%26b&page=1")
+    #expect(
+      URLComponents(url: try #require(sent.url), resolvingAgainstBaseURL: false)?.queryItems
+        == [URLQueryItem(name: "q", value: "c++ a&b"), URLQueryItem(name: "page", value: "1")]
+    )
+  }
+
   @Test
   func decodesResponse() async throws {
     struct Payload: Decodable, Equatable { var value: Int }

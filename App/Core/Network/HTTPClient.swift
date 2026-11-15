@@ -31,6 +31,10 @@ extension HTTPClient {
       else { throw HTTPError.invalidRequest }
       if !request.queryItems.isEmpty {
         components.queryItems = (components.queryItems ?? []) + request.queryItems
+        // `URLComponents` 는 `+` 를 인코딩하지 않는데 서버는 쿼리의 `+` 를 공백으로 읽는다.
+        // 그대로 보내면 "c++" 가 "c" 로 검색되므로 직접 인코딩한다.
+        components.percentEncodedQuery = components.percentEncodedQuery?
+          .replacingOccurrences(of: "+", with: "%2B")
       }
       guard let url = components.url else { throw HTTPError.invalidRequest }
 

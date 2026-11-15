@@ -84,7 +84,7 @@ struct SearchFeature {
     }
   }
 
-  /// 결과 영역을 열고, 검색어를 최근 검색어 맨 위에 기록한다. 빈 검색어면 아무것도 하지 않는다.
+  /// 결과 영역을 열어 검색을 시작하고, 검색어를 최근 검색어 맨 위에 기록한다. 빈 검색어면 아무것도 하지 않는다.
   private func search(_ query: String, state: inout State) -> Effect<Action> {
     let keyword = query.trimmed
     guard !keyword.isEmpty else { return .none }
@@ -98,6 +98,7 @@ struct SearchFeature {
       state.recentSearches.removeLast(state.recentSearches.count - Self.maxRecentSearchCount)
     }
     return save(state.recentSearches)
+      .merge(with: .send(.result(.searchRequested)))
   }
 
   /// 연달아 바꿔도 마지막 목록이 마지막에 쓰이도록, effect 로 미루지 않고 바로 저장한다.
