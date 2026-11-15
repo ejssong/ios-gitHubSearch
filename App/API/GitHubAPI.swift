@@ -10,6 +10,7 @@ enum GitHubAPI {
   static let defaultHeaders = ["Accept": "application/vnd.github+json"]
 
   /// `GET /search/repositories?q={keyword}&page={page}`. `page` 는 1부터 센다.
+  /// `per_page` 를 보내지 않아 한 페이지는 API 기본값인 30개다. `SearchResultFeature.pageSize` 가 이 값에 기댄다.
   static func searchRepositories(keyword: String, page: Int) -> HTTPRequest {
     request(
       path: "search/repositories",
