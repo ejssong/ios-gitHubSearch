@@ -318,3 +318,102 @@ Xcode 에서 패키지 구조를 확인한 뒤 보낸 프롬프트입니다.
 - 실제 API 로 `page=34` 는 200(30건), `page=35` 는 422 임을 확인. 1,000건 상한 판단과 일치
 - 이슈 #7 결정 사항을 비율 기준으로 고치고 실패 처리, 중복 제거, 취소를 추가
 - 시뮬레이터에서 직접 스크롤해 보는 확인은 하지 않음
+
+## 13. TCA + Clean Architecture 구조로 변경 (#19)
+
+> 전체적으로 폴더 구성을 아래와 같이 구성해주고 싶은데 피드백 해줘.
+> - App
+> - Feature
+>   ㄴ Search
+>   ㄴ SearchResult
+>   ㄴ WebView
+> - Domain
+>   ㄴ Entities
+>   ㄴ Repositories
+> - Data
+>   ㄴ Network
+
+피드백(인터페이스와 구현 분리, 저장 구현의 위치, `HTTPError` 의 위치 등)을 받은 뒤 보낸 프롬프트입니다.
+
+> TCA + Clean Architecture 구조로 변경하고 싶어. Issues 만들어주고 작업할거야.
+> 1. 네
+> 2. Data/UserDefaults 로 진행해주세요
+> 3. Data — HTTPError 를 정하고 Domain -  Repositories 에서 실제 안내 문구를 지정해주세요
+
+이슈 #19 를 만든 뒤, 타입 이름을 묻는 항목에 답한 프롬프트입니다.
+
+> Repository 로 바꾸겠습니다.
+
+> /start-issue 19
+
+계획과 질문 네 가지(오류 타입, 타입 이름, 소스 폴더 위치, GitHub 하위 폴더)를 받은 뒤 보낸 프롬프트입니다.
+
+> 추천대로 해주세요
+
+> /finish-issue
+
+커밋에 들어갈 내용을 확인하며 보낸 프롬프트입니다.
+
+> 네
+
+PR 을 올린 뒤, 같은 PR 에 이어서 통신 계층을 바꾸며 보낸 프롬프트입니다.
+
+> HTTPClient / HTTPError / HTTPRequest 쪽 
+> protocol APIClientProtocol: Sendable {
+>   func get<Response: Decodable>( ) async throws -> Response 
+> }
+> 프로토콜 생성해주고
+> Data/Network/Search 
+> 로 SearchAPIClient 에서 해당 프로토콜 채택해서 만들어줘
+
+> 1. B로 진행해주고 테스트 코드도 다시 
+> 2. path 랑 queryItems
+> 3. A 로
+
+> GitHubAPI 랑 SearvhAPIClient 랑 합치는 방법은?
+
+합치는 방법 두 가지(프로토콜 확장에 검색 메서드를 두는 A, `SearchAPIClient` 에만 두는 B)를 받은 뒤 보낸 프롬프트입니다.
+
+> A로 진행해주세요
+
+> 네 진행해주세요
+
+통신 계층 커밋을 올린 뒤, `Data` 가 `Domain` 타입을 확장하는 구조를 물으며 보낸 프롬프트입니다.
+
+> RecentSearchRepository+Live 에 Domain 에 정의된 struct 가 extension 으로 되어있는데
+> Domain -> Data 이 구조 맞아? 의존성에 적합한거야?
+
+의존 방향은 맞지만 구현을 `Data` 자신의 타입으로 두고 연결을 `Application` 에서 하는 방법이 있다는 답을 받은 뒤 보낸 프롬프트입니다. (붙여 넣은 코드 포함)
+
+> extension SearchRepository: DependencyKey {
+>   static let liveValue = SearchRepository.live(apiClient: SearchAPIClient())
+> }
+>
+>  여기도 같이 수정해줘
+
+> SearchRepositoriesResponse
+> 이거 SearchDTO 로 변경하는거 어때?
+
+> 네
+
+> RecentSearch 랑 SearchResultFeature 에서 사용하는 .formatted Util 파일로 빼줘
+
+> 네 진행해주셍
+
+**구현 요소**
+- 폴더를 `Application` / `Feature` / `Domain` / `Data` 로 나눔. 의존 방향은 `Feature` → `Domain` ← `Data`
+- 저장소를 인터페이스와 구현으로 분리: 선언과 `testValue` 는 `Domain/Repositories` (`SearchRepository`, `RecentSearchRepository`). 구현은 `Data` 자신의 타입(`RemoteSearchRepository`, `UserDefaultsRecentSearchRepository`)이 `make` 로 만들어 돌려주고, 어떤 구현을 쓸지(`liveValue`)는 `Application/Dependencies.swift` 가 정함. 처음에는 `Data` 에서 `Domain` 타입을 `extension` 으로 넓혀 `liveValue` 를 두었으나, `Domain` 타입 이름으로 `Data` 의 기능이 불리는 것을 피하려고 변경
+- 오류를 두 단계로 나눔: `Data` 의 `HTTPError` 를 저장소 구현이 `Domain` 의 `SearchError` 로 바꿔 넘기고, 안내 문구는 `SearchError.message` 가 정함. 리듀서는 `HTTPError` 를 더 이상 보지 않음
+- 통신 계층은 `APIClientProtocol` (`get(path:queryItems:)`) 과 이를 채택한 `Data/Network/Search/SearchAPIClient` 로 구성. `SearchAPIClient` 가 서버 주소와 공통 헤더를 알고 `URLSession` 으로 전송하며 `HTTPError` 변환, `+` 인코딩, JSON 해석을 맡음. 처음 구조 변경 때 옮겨 두었던 `HTTPClient`, `HTTPRequest` 는 삭제
+- `GitHubAPI` 는 `SearchAPIClient` 에 합침. 검색 endpoint 의 경로와 쿼리는 `APIClientProtocol` 확장의 `searchRepositories(keyword:page:)` 가 정함. 저장소 구현은 프로토콜만 보고, 테스트에서는 가짜 구현(`StubAPIClient`)으로 바꿔 끼움
+- 응답 DTO 의 이름을 `SearchRepositoriesResponse` 에서 `SearchDTO` 로 변경. `Data` 안에서만 쓰는 타입이라는 역할이 이름에 드러나게 함
+- 날짜(`MM.dd`)와 숫자(세 자리 쉼표) 포맷을 `App/Util/Formatters.swift` 로 빼서 `RecentSearch` 와 `SearchResultFeature` 가 함께 씀
+- 소스는 `App/` 아래에 두어 `project.pbxproj` 를 고치지 않음. UseCase 계층은 두지 않음
+- `CLAUDE.md` 의 구조 표·의존 방향·오류 규칙과 `.claude/agents/reviewer.md` 의 의존 방향을 새 계층에 맞춤
+
+**결과**
+- 시뮬레이터 빌드 성공, 테스트 94개 통과. 동작 변경 없음 (안내 문구 동일)
+- `HTTPClient` 에 붙어 있던 테스트는 `SearchAPIClient` 테스트로 다시 씀
+- `Feature`, `Application`, `Domain` 에서 `Data` 의 타입을 쓰는 코드가 없음을 `grep` 으로 확인
+- 로직의 위치는 바꾸지 않아, 화면 표현에 가까운 `RecentSearch.searchedDateText` 등이 `Domain` 에 남아 있음
+- 시뮬레이터에서 화면이 그대로인지 직접 확인하지는 않음
