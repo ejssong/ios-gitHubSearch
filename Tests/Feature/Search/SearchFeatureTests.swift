@@ -37,6 +37,7 @@ struct SearchFeatureTests {
     let store = TestStore(initialState: SearchFeature.State(query: "  swift ")) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchRepository.save = { _ in }
@@ -114,6 +115,7 @@ struct SearchFeatureTests {
     let store = TestStore(initialState: SearchFeature.State()) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.recentSearchRepository.load = { stored }
     }
 
@@ -132,6 +134,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
@@ -156,6 +159,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchRepository.save = { _ in }
@@ -177,6 +181,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
@@ -202,6 +207,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
@@ -227,6 +233,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
@@ -246,6 +253,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
@@ -266,6 +274,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }
     }
 
@@ -293,6 +302,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.recentSearchRepository.save = { _ in }
       $0.searchRepository.search = { _, _ in
@@ -319,6 +329,7 @@ struct SearchFeatureTests {
     let store = TestStore(initialState: SearchFeature.State(query: "swift")) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.recentSearchRepository.save = { _ in }
       $0.searchRepository.search = { _, _ in try await Task.never() }
@@ -343,6 +354,7 @@ struct SearchFeatureTests {
     let store = TestStore(initialState: SearchFeature.State(query: "swift")) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.recentSearchRepository.save = { _ in }
       $0.searchRepository.search = { _, _ in
@@ -463,6 +475,7 @@ struct SearchFeatureTests {
     ) {
       SearchFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.date.now = now
       $0.searchRepository.search = { _, _ in RepositorySearchPage(totalCount: 0, repositories: []) }
       $0.recentSearchRepository.save = { searches in saved.withValue { $0.append(searches) } }

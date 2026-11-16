@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Kingfisher
 import SwiftUI
 
 struct SearchResultView: View {
@@ -97,16 +98,14 @@ private struct RepositoryRow: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      AsyncImage(url: repository.avatarURL) { image in
-        image
-          .resizable()
-          .scaledToFill()
-      } placeholder: {
-        Color(.secondarySystemFill)
-      }
-      .frame(width: 44, height: 44)
-      .clipShape(RoundedRectangle(cornerRadius: 8))
-      .accessibilityHidden(true)
+      // Kingfisher 가 메모리와 디스크에 캐싱한다. 리듀서가 미리 받아 둔 썸네일은 내려받지 않고 바로 보인다.
+      KFImage(repository.avatarURL)
+        .placeholder { Color(.secondarySystemFill) }
+        .resizable()
+        .scaledToFill()
+        .frame(width: 44, height: 44)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 2) {
         Text(repository.name)
