@@ -10,3 +10,7 @@ extension SearchRepository: DependencyKey {
 extension RecentSearchRepository: DependencyKey {
   static let liveValue = UserDefaultsRecentSearchRepository.make()
 }
+
+extension ImagePrefetchRepository: DependencyKey {
+  static let liveValue = KingfisherImagePrefetchRepository.make()
+}

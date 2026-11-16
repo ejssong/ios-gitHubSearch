@@ -32,6 +32,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { [page] keyword, pageNumber in
         calls.withValue { $0.append("\(keyword)#\(pageNumber)") }
         return page
@@ -56,6 +57,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "zzzz")) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in
         RepositorySearchPage(totalCount: 0, repositories: [])
       }
@@ -74,6 +76,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in throw SearchError.network }
     }
 
@@ -89,6 +92,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in throw SearchError.rateLimited }
     }
 
@@ -105,6 +109,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in throw SomeError() }
     }
 
@@ -122,6 +127,7 @@ struct SearchResultFeatureTests {
     ) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { [page] _, _ in page }
     }
 
@@ -146,6 +152,7 @@ struct SearchResultFeatureTests {
     ) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in throw SearchError.network }
     }
 
@@ -166,6 +173,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { [page] _, _ in
         let call = callCount.withValue { count in
           count += 1
@@ -292,6 +300,7 @@ struct SearchResultFeatureTests {
     ) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { [swift] _, _ in
         RepositorySearchPage(totalCount: 1, repositories: [swift])
       }
@@ -334,6 +343,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { keyword, page in
         calls.withValue { $0.append("\(keyword)#\(page)") }
         return secondPage
@@ -371,6 +381,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: state) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in thirdPage }
     }
 
@@ -393,6 +404,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in
         callCount.withValue { $0 += 1 }
         for await page in responses { return page }
@@ -419,6 +431,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { [items = items(1...30)] _, _ in
         RepositorySearchPage(totalCount: 30, repositories: items)
       }
@@ -440,6 +453,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage(totalCount: 45)) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in lastPage }
     }
 
@@ -465,6 +479,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: state) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in lastPage }
     }
 
@@ -485,6 +500,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in
         RepositorySearchPage(totalCount: 100, repositories: [])
       }
@@ -508,6 +524,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in overlapping }
     }
 
@@ -528,6 +545,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { [first = items(1...30), third = items(31...60)] _, page in
         calls.withValue { $0.append(page) }
         return RepositorySearchPage(totalCount: 100, repositories: page == 2 ? first : third)
@@ -555,6 +573,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in
         callCount.withValue { $0 += 1 }
         throw SearchError.rateLimited
@@ -584,6 +603,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: state) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, page in
         calls.withValue { $0.append(page) }
         return secondPage
@@ -608,6 +628,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage(totalCount: 100)) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in secondPage }
     }
 
@@ -628,6 +649,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, _ in throw SomeError() }
     }
 
@@ -676,6 +698,7 @@ struct SearchResultFeatureTests {
     let store = TestStore(initialState: loadedFirstPage()) {
       SearchResultFeature()
     } withDependencies: {
+      $0.imagePrefetchRepository = .noop
       $0.searchRepository.search = { _, page in
         if page == 2 { try await Task.never() }
         return fresh
@@ -699,6 +722,129 @@ struct SearchResultFeatureTests {
       $0.totalCount = 2
       $0.loadedPageCount = 1
     }
+  }
+
+  // MARK: - 썸네일 미리 받기
+
+  private func item(_ id: Int, avatar: String?) -> RepositoryItem {
+    RepositoryItem(
+      id: id, name: "repo\(id)", ownerLogin: "owner", avatarURL: avatar.flatMap(URL.init(string:))
+    )
+  }
+
+  /// 미리 받기 요청과 멈춤을 순서대로 기록한다.
+  private func recordingPrefetch(into log: LockIsolated<[String]>) -> ImagePrefetchRepository {
+    ImagePrefetchRepository(
+      prefetch: { urls in
+        log.withValue { $0.append("prefetch " + urls.map(\.lastPathComponent).joined(separator: ",")) }
+      },
+      cancel: { log.withValue { $0.append("cancel") } }
+    )
+  }
+
+  /// 새 검색은 이전 미리 받기를 멈추고, 첫 페이지가 오면 그 페이지의 썸네일을 미리 받는다. 주소가 없는 항목은 건너뛴다.
+  @Test
+  func firstPagePrefetchesItsThumbnails() async {
+    let log = LockIsolated<[String]>([])
+    let repositories = [
+      item(1, avatar: "https://example.com/a.png"),
+      item(2, avatar: nil),
+      item(3, avatar: "https://example.com/c.png"),
+    ]
+    let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
+      SearchResultFeature()
+    } withDependencies: {
+      $0.imagePrefetchRepository = recordingPrefetch(into: log)
+      $0.searchRepository.search = { _, _ in
+        RepositorySearchPage(totalCount: 3, repositories: repositories)
+      }
+    }
+
+    await store.send(.searchRequested)
+    await store.receive(\.searchResponse.success) {
+      $0.phase = .loaded
+      $0.repositories = repositories
+      $0.totalCount = 3
+      $0.loadedPageCount = 1
+    }
+    #expect(log.value == ["cancel", "prefetch a.png,c.png"])
+  }
+
+  /// 다음 페이지에서는 새로 붙은 항목의 썸네일만 미리 받는다.
+  @Test
+  func nextPagePrefetchesOnlyNewThumbnails() async {
+    let log = LockIsolated<[String]>([])
+    let first = (1...30).map { item($0, avatar: "https://example.com/\($0).png") }
+    let second = (30...32).map { item($0, avatar: "https://example.com/\($0).png") }
+    let store = TestStore(
+      initialState: SearchResultFeature.State(
+        keyword: "swift", phase: .loaded, repositories: first, totalCount: 100,
+        loadedPageCount: 1, hasNextPage: true
+      )
+    ) {
+      SearchResultFeature()
+    } withDependencies: {
+      $0.imagePrefetchRepository = recordingPrefetch(into: log)
+      $0.searchRepository.search = { _, _ in
+        RepositorySearchPage(totalCount: 100, repositories: second)
+      }
+    }
+
+    await store.send(.repositoryAppeared(30)) {
+      $0.nextPagePhase = .loading
+    }
+    await store.receive(\.nextPageResponse.success) {
+      $0.nextPagePhase = .idle
+      $0.loadedPageCount = 2
+      $0.repositories = first + second.dropFirst()
+    }
+    #expect(log.value == ["prefetch 31.png,32.png"])
+  }
+
+  /// 썸네일 주소가 하나도 없으면 미리 받기를 요청하지 않는다.
+  @Test
+  func pageWithoutThumbnailsDoesNotPrefetch() async {
+    let log = LockIsolated<[String]>([])
+    let repositories = [item(1, avatar: nil)]
+    let store = TestStore(initialState: SearchResultFeature.State(keyword: "swift")) {
+      SearchResultFeature()
+    } withDependencies: {
+      $0.imagePrefetchRepository = recordingPrefetch(into: log)
+      $0.searchRepository.search = { _, _ in
+        RepositorySearchPage(totalCount: 1, repositories: repositories)
+      }
+    }
+
+    await store.send(.searchRequested)
+    await store.receive(\.searchResponse.success) {
+      $0.phase = .loaded
+      $0.repositories = repositories
+      $0.totalCount = 1
+      $0.loadedPageCount = 1
+    }
+    #expect(log.value == ["cancel"])
+  }
+
+  /// 첫 페이지를 다시 시도해도 이전 미리 받기를 멈춘다.
+  @Test
+  func retryCancelsPrefetching() async {
+    let log = LockIsolated<[String]>([])
+    let store = TestStore(
+      initialState: SearchResultFeature.State(keyword: "swift", phase: .failed(.network))
+    ) {
+      SearchResultFeature()
+    } withDependencies: {
+      $0.imagePrefetchRepository = recordingPrefetch(into: log)
+      $0.searchRepository.search = { _, _ in throw SearchError.network }
+    }
+
+    await store.send(.retryTapped) {
+      $0.phase = .loading
+    }
+    await store.receive(\.searchResponse.failure) {
+      $0.phase = .failed(.network)
+    }
+    #expect(log.value == ["cancel"])
   }
 
   @Test

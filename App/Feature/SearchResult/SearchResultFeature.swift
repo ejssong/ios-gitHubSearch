@@ -105,6 +105,7 @@ struct SearchResultFeature {
   private enum CancelID { case search, nextPage }
 
   @Dependency(\.searchRepository) var searchRepository
+  @Dependency(\.imagePrefetchRepository) var imagePrefetchRepository
 
   init() {}
 
@@ -119,6 +120,8 @@ struct SearchResultFeature {
         state.hasNextPage = false
         state.nextPagePhase = .idle
         state.webPage = nil
+        // 이전 목록의 썸네일을 미리 받던 것은 더 필요 없다.
+        imagePrefetchRepository.cancel()
         // 이전 목록에 붙이려던 다음 페이지 요청은 버린다.
         return .merge(
           .cancel(id: CancelID.nextPage),
@@ -131,6 +134,7 @@ struct SearchResultFeature {
         state.totalCount = page.totalCount
         state.loadedPageCount = 1
         state.hasNextPage = hasNextPage(after: page, loadedPageCount: 1)
+        prefetchThumbnails(of: page.repositories)
         return .none
 
       case let .searchResponse(.failure(error)):
@@ -159,6 +163,7 @@ struct SearchResultFeature {
         let loadedIDs = Set(state.repositories.map(\.id))
         let newRepositories = page.repositories.filter { !loadedIDs.contains($0.id) }
         state.repositories += newRepositories
+        prefetchThumbnails(of: newRepositories)
         // 새로 붙은 행이 없으면 행이 나타날 일도 없어 멈춘다. 바로 그다음 페이지를 요청한다.
         guard newRepositories.isEmpty, state.hasNextPage else { return .none }
         return nextPage(state: &state)
@@ -215,6 +220,14 @@ struct SearchResultFeature {
       }
     }
     .cancellable(id: CancelID.nextPage, cancelInFlight: true)
+  }
+
+  /// 방금 붙은 항목의 썸네일을 행이 화면에 나타나기 전에 미리 받아 둔다.
+  /// effect 로 미루지 않고 바로 부른다. 새 검색의 `cancel` 다음에 그 검색의 `prefetch` 가 오는 순서를 지키기 위해서다.
+  private func prefetchThumbnails(of repositories: [RepositoryItem]) {
+    let urls = repositories.compactMap(\.avatarURL)
+    guard !urls.isEmpty else { return }
+    imagePrefetchRepository.prefetch(urls)
   }
 
   /// 빈 페이지가 왔거나, 전체 건수 또는 API 상한까지 불러왔으면 더 요청하지 않는다.
