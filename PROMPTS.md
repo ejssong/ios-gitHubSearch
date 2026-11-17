@@ -490,3 +490,58 @@ PR 을 올린 뒤, 같은 PR 에 이어서 통신 계층을 바꾸며 보낸 프
 - 한도 헤더가 없는 403 은 이전에는 알 수 없는 오류였고, 이제는 호출 제한 안내로 표시됨
 - `URLError` 가 아닌 전송 오류는 `HTTPError` 로 바뀌지 않고 그대로 전달되어, 화면(리듀서)에서 알 수 없는 오류로 처리됨
 - 시뮬레이터에서 실제 호출 제한 안내는 직접 확인하지 않음
+
+## 16. 첫 페이지와 다음 페이지 요청의 중복 정리 (#25)
+
+> SearchResultFeature 에서 첫 페이지와 다음 페이지를 불러오는 중복 코드 정리해줘. 이슈 만들고 작업 시작해줘
+
+이슈 #25 와 계획, 질문 한 가지(상태 초기화와 빈 `init` 정리도 함께 할지)를 받은 뒤 보낸 프롬프트입니다.
+
+> 네 진행해주세요
+
+요청과 오류 변환을 합친 결과를 받은 뒤 보낸 프롬프트입니다.
+
+> response 응답 받는 쪽도 수정해줘 
+> case let .searchResponse(.success(page)):
+> case let .searchResponse(.failure(error)):
+>
+> case let .nextPageResponse(.success(page)):
+>         state.nextPagePhase = .idle
+>         state.loadedPageCount += 1
+>         state.totalCount = page.totalCount
+>         state.hasNextPage = hasNextPage(after: page, loadedPageCount: state.loadedPageCount)
+>         // 페이지 사이에 순위가 바뀌면 같은 저장소가 다시 올 수 있다.
+>         let loadedIDs = Set(state.repositories.map(\.id))
+>         let newRepositories = page.repositories.filter { !loadedIDs.contains($0.id) }
+>         state.repositories += newRepositories
+>         prefetchThumbnails(of: newRepositories)
+>         // 새로 붙은 행이 없으면 행이 나타날 일도 없어 멈춘다. 바로 그다음 페이지를 요청한다.
+>         guard newRepositories.isEmpty, state.hasNextPage else { return .none }
+>         return nextPage(state: &state)
+>
+>       case let .nextPageResponse(.failure(error)):
+>         state.nextPagePhase = .failed(error)
+>         return .none
+>
+> switch case 문으로 정리할 수 있을 것 같은데
+
+> 동일한 response 일텐데 메소드 하나로 정리할 순 없을까?
+
+> /finish-issue
+
+커밋에 들어갈 내용과, "다시 시도" 때의 화면은 시뮬레이터에서 확인하지 못했다는 보고를 받은 뒤 보낸 프롬프트입니다.
+
+> 해당 테스트 e2e 테스트로 확인 후 진행해주세요
+
+**구현 요소**
+- 첫 페이지와 다음 페이지가 각각 갖고 있던 같은 `do/catch` 를 `fetchPage(keyword:page:)` 하나로 합침. 성공과 실패는 `Result` 로, 취소는 `nil` 로 돌려줌
+- `firstPage`, `nextPage` 는 결과 액션, 취소 ID, 로딩 표시가 달라 따로 남기고 `fetchPage` 를 부르기만 함
+- 응답 액션(`searchResponse`, `nextPageResponse`)의 성공·실패 처리를 액션당 `case` 하나와 그 안의 `switch` 로 묶음
+- 받은 페이지를 목록에 반영하는 처리를 `append(_:to:)` 하나로 합침. 첫 페이지는 빈 목록에 붙이는 것으로 봄
+- 새 검색 때 일곱 줄로 되돌리던 상태를 `State(keyword:)` 한 줄로 줄이고, 빈 `init() {}` 을 삭제
+
+**결과**
+- 시뮬레이터 빌드 성공, 기존 테스트 96개가 수정 없이 통과
+- 액션과 상태는 바뀌지 않음
+- 저장소 밖에 만든 임시 UI 테스트로 시뮬레이터에서 실제 앱과 실제 GitHub API 를 붙여 확인: 검색을 연달아 실행해 호출 제한에 걸림 → 안내와 "다시 시도" 표시 → 한도가 풀리기 전 다시 시도하면 같은 안내 → 풀린 뒤 다시 시도하면 목록이 맨 위부터 표시 → 스크롤 뒤 새 검색을 하면 이전 목록 없이 새 결과가 맨 위부터 표시
+- 이 UI 테스트는 프로젝트에 UI 테스트 타깃이 없어 저장소에는 넣지 않음
