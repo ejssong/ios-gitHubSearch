@@ -117,9 +117,3 @@ struct SearchFeature {
     return .none
   }
 }
-
-extension String {
-  fileprivate var trimmed: String {
-    trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-}

@@ -24,7 +24,7 @@ GitHub 저장소 검색 iOS 앱 과제입니다. 요구사항은 [docs/requireme
 | `App/Data/Network/Search` | 검색 API. 서버 주소·공통 헤더와 실제 전송(`SearchAPIClient`), 검색 endpoint(`searchRepositories(keyword:page:)`), 응답 DTO, `SearchRepository` 를 만드는 `RemoteSearchRepository` |
 | `App/Data/Image` | 썸네일을 미리 받는 `ImagePrefetchRepository` 를 만드는 `KingfisherImagePrefetchRepository` |
 | `App/Data/UserDefaults` | `RecentSearchRepository` 를 만드는 `UserDefaultsRecentSearchRepository` |
-| `App/Util` | 계층과 무관한 공통 도구. 지금은 화면용 문자열 포맷(`Formatters.swift`) |
+| `App/Util` | 계층과 무관한 공통 도구. 지금은 화면용 문자열 포맷과 문자열 다듬기(`Formatters.swift`) |
 
 - 의존 방향은 `Feature` → `Domain` ← `Data` 다. 컴파일러가 막아 주지 않으므로 규칙으로 지킨다.
   - `Domain` 은 `Feature`, `Data` 를 참조하지 않는다.
@@ -42,7 +42,7 @@ GitHub 저장소 검색 iOS 앱 과제입니다. 요구사항은 [docs/requireme
 - 액션 이름은 일어난 일을 적는다. (`queryChanged`, `searchSubmitted`)
 - 리듀서에서 `URLSession`, `UserDefaults`, 현재 시각 같은 외부 세계를 직접 쓰지 않는다. `@DependencyClient` 로 감싸거나 TCA 가 제공하는 의존성을 주입받는다.
 - 자식 Feature 는 `Scope`, `ifLet` 로 합성한다.
-- HTTP 오류는 `SearchAPIClient` 가 `HTTPError` 로 바꾸고, `Data` 의 저장소 구현이 다시 `SearchError` 로 바꿔 넘긴다. Feature 는 `SearchError` 만 보고, 안내 문구는 `SearchError.message` 가 정한다.
+- `SearchAPIClient` 는 응답이 성공(2xx)인지만 확인하고, 아니면 상태 코드를 담은 `HTTPError` 를 던진다. 상태 코드가 무슨 뜻인지(`403`, `429` 는 호출 제한)는 `Data` 의 저장소 구현이 정해 `SearchError` 로 바꿔 넘긴다. Feature 는 `SearchError` 만 보고, 안내 문구는 `SearchError.message` 가 정한다.
 
 ## 테스트
 

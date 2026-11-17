@@ -6,13 +6,13 @@ import Foundation
 struct StubAPIClient: APIClientProtocol {
   var respond: @Sendable (_ path: String, _ queryItems: [URLQueryItem]) async throws -> Data
 
-  func get<Response: Decodable>(path: String, queryItems: [URLQueryItem]) async throws -> Response {
+  func get<Response: Decodable>(_ path: String, queryItems: [URLQueryItem]) async throws -> Response {
     let data = try await respond(path, queryItems)
     do {
       return try JSONDecoder().decode(Response.self, from: data)
     } catch {
       // 프로토콜의 약속대로, 해석할 수 없는 본문은 `HTTPError` 로 알린다.
-      throw HTTPError.unknown
+      throw HTTPError.invalidResponse
     }
   }
 }

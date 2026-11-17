@@ -38,4 +38,11 @@ struct FormattersTests {
     #expect(266_714.groupedText == "266,714")
     #expect(1_234_567.groupedText == "1,234,567")
   }
+
+  @Test
+  func trimmedRemovesSurroundingWhitespaceAndNewlines() {
+    #expect(" swift \n".trimmed == "swift")
+    #expect("swift ui".trimmed == "swift ui")
+    #expect(" \n\t".trimmed == "")
+  }
 }
