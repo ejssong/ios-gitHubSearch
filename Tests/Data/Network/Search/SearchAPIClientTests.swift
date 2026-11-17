@@ -18,7 +18,7 @@ struct SearchAPIClientTests {
   func successDecodesBody() async throws {
     let client = client("success", .response(statusCode: 200, body: Data(#"{"value":1}"#.utf8)))
 
-    let payload: Payload = try await client.get(path: "success", queryItems: [])
+    let payload: Payload = try await client.get("success", queryItems: [])
 
     #expect(payload == Payload(value: 1))
   }
@@ -28,7 +28,7 @@ struct SearchAPIClientTests {
     let client = client("query", .response(statusCode: 200, body: emptyObject))
 
     let _: Empty = try await client.get(
-      path: "query",
+      "query",
       queryItems: [URLQueryItem(name: "q", value: "swift"), URLQueryItem(name: "page", value: "2")]
     )
 
@@ -42,7 +42,7 @@ struct SearchAPIClientTests {
   func requestWithoutQueryItemsHasNoQuery() async throws {
     let client = client("no-query", .response(statusCode: 200, body: emptyObject))
 
-    let _: Empty = try await client.get(path: "no-query", queryItems: [])
+    let _: Empty = try await client.get("no-query", queryItems: [])
 
     let sent = try #require(StubURLProtocol.lastRequest(path: "/no-query"))
     #expect(sent.url?.absoluteString == "https://api.github.com/no-query")
@@ -54,7 +54,7 @@ struct SearchAPIClientTests {
     let client = client("plus", .response(statusCode: 200, body: emptyObject))
     let queryItems = [URLQueryItem(name: "q", value: "c++ a&b"), URLQueryItem(name: "page", value: "1")]
 
-    let _: Empty = try await client.get(path: "plus", queryItems: queryItems)
+    let _: Empty = try await client.get("plus", queryItems: queryItems)
 
     let sent = try #require(StubURLProtocol.lastRequest(path: "/plus"))
     #expect(sent.url?.query(percentEncoded: true) == "q=c%2B%2B%20a%26b&page=1")
@@ -65,11 +65,11 @@ struct SearchAPIClientTests {
   }
 
   @Test
-  func undecodableBodyIsUnknown() async {
+  func undecodableBodyIsInvalidResponse() async {
     let client = client("undecodable", .response(statusCode: 200, body: Data("not json".utf8)))
 
-    await #expect(throws: HTTPError.unknown) {
-      let _: Payload = try await client.get(path: "undecodable", queryItems: [])
+    await #expect(throws: HTTPError.invalidResponse) {
+      let _: Payload = try await client.get("undecodable", queryItems: [])
     }
   }
 
@@ -78,7 +78,7 @@ struct SearchAPIClientTests {
     let client = client("offline", .failure(.notConnectedToInternet))
 
     await #expect(throws: HTTPError.network) {
-      let _: Empty = try await client.get(path: "offline", queryItems: [])
+      let _: Empty = try await client.get("offline", queryItems: [])
     }
   }
 
@@ -88,54 +88,20 @@ struct SearchAPIClientTests {
     let client = client("cancelled", .failure(.cancelled))
 
     await #expect(throws: CancellationError.self) {
-      let _: Empty = try await client.get(path: "cancelled", queryItems: [])
+      let _: Empty = try await client.get("cancelled", queryItems: [])
     }
   }
 
-  @Test
-  func tooManyRequestsIsRateLimited() async {
-    let client = client("429", .response(statusCode: 429))
-
-    await #expect(throws: HTTPError.rateLimited) {
-      let _: Empty = try await client.get(path: "429", queryItems: [])
-    }
-  }
-
-  @Test
-  func forbiddenWithExhaustedLimitIsRateLimited() async {
+  /// 성공(2xx)이 아니면 상태 코드만 담아 던진다. 헤더는 보지 않고, 코드의 뜻은 저장소 구현이 정한다.
+  @Test(arguments: [403, 404, 422, 429, 500])
+  func unsuccessfulStatusCodeIsThrownAsIs(statusCode: Int) async {
     let client = client(
-      "403-limit", .response(statusCode: 403, headers: ["X-RateLimit-Remaining": "0"])
+      "status-\(statusCode)",
+      .response(statusCode: statusCode, headers: ["X-RateLimit-Remaining": "0"])
     )
 
-    await #expect(throws: HTTPError.rateLimited) {
-      let _: Empty = try await client.get(path: "403-limit", queryItems: [])
-    }
-  }
-
-  @Test
-  func forbiddenWithoutLimitHeaderIsInvalidRequest() async {
-    let client = client("403", .response(statusCode: 403))
-
-    await #expect(throws: HTTPError.invalidRequest) {
-      let _: Empty = try await client.get(path: "403", queryItems: [])
-    }
-  }
-
-  @Test
-  func unprocessableIsInvalidRequest() async {
-    let client = client("422", .response(statusCode: 422))
-
-    await #expect(throws: HTTPError.invalidRequest) {
-      let _: Empty = try await client.get(path: "422", queryItems: [])
-    }
-  }
-
-  @Test
-  func serverErrorIsUnknown() async {
-    let client = client("500", .response(statusCode: 500))
-
-    await #expect(throws: HTTPError.unknown) {
-      let _: Empty = try await client.get(path: "500", queryItems: [])
+    await #expect(throws: HTTPError.unsuccessfulStatusCode(statusCode)) {
+      let _: Empty = try await client.get("status-\(statusCode)", queryItems: [])
     }
   }
 }

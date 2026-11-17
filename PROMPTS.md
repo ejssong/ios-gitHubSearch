@@ -452,3 +452,41 @@ PR 을 올린 뒤, 같은 PR 에 이어서 통신 계층을 바꾸며 보낸 프
 - 이슈 #21 결정 사항에 버전, 프리패칭 구조, 캐시 옵션을 추가
 - 결과 영역이 닫힐 때는 진행 중인 미리 받기가 멈추지 않고 끝까지 받아짐 (다음 검색 때 정리)
 - 시뮬레이터에서 썸네일 표시와 캐시 동작을 직접 확인하지는 않음
+
+## 15. SearchAPIClient 단순화 (#23)
+
+> SearchAPIClient 를 나눠서 단순하게 정리해줘.
+> validate 는 2xx 가 아니면 상태 코드만 담아 던지고, 상태 코드는 RemoteSeachRepository 로 옮겨줘. 
+> 이슈 만들고 작업 시작해줘.
+
+이슈 #23 과 계획, 질문 두 가지(403 을 호출 제한으로 볼지, `get` 서명을 바꿀지)를 받은 뒤 보낸 프롬프트입니다.
+
+> 추천대로 진행해주세요
+
+> /finish-issue
+
+커밋에 들어갈 내용을 확인하다가 보낸 프롬프트입니다.
+
+> extension String {
+>   fileprivate var trimmed: String {
+>     trimmingCharacters(in: .whitespacesAndNewlines)
+>   }
+> }
+>
+>  이 부분 Util/Formatters 로 빼줘.
+
+> 네 #23 먼저 커밋 진행해주세요
+
+**구현 요소**
+- `SearchAPIClient` 의 `get` 을 `makeURL` → `data(from:)` → `validate` → 해석 순서로 나눔. 이전에는 메서드 하나가 요청 만들기, 전송, 오류 변환, 상태 코드 확인을 모두 했음
+- `validate` 는 성공(2xx)인지만 확인하고, 아니면 상태 코드를 담은 `HTTPError.unsuccessfulStatusCode` 를 던짐. 응답 헤더를 딕셔너리로 바꾸던 코드와 `HTTPError` 의 상태 코드 해석을 삭제
+- 상태 코드의 뜻은 `RemoteSearchRepository` 가 정함: `403`, `429` 는 호출 제한, 그 밖은 알 수 없는 오류
+- `APIClientProtocol` 의 서명을 `get(_ path:queryItems:)` 로 변경
+- `Accept` 헤더, `+` 인코딩, 취소 전달, 연결 오류 구분은 그대로 유지
+- `SearchFeature` 안에 있던 `String.trimmed` 를 `Util/Formatters.swift` 로 옮김 (이슈 #23 범위 밖이지만 요청에 따라 함께 반영)
+
+**결과**
+- 시뮬레이터 빌드 성공, 테스트 96개 통과 (상태 코드별 테스트 5개를 매개변수 테스트로 합치고, 전송부터 저장소까지 잇는 호출 제한 테스트를 추가)
+- 한도 헤더가 없는 403 은 이전에는 알 수 없는 오류였고, 이제는 호출 제한 안내로 표시됨
+- `URLError` 가 아닌 전송 오류는 `HTTPError` 로 바뀌지 않고 그대로 전달되어, 화면(리듀서)에서 알 수 없는 오류로 처리됨
+- 시뮬레이터에서 실제 호출 제한 안내는 직접 확인하지 않음

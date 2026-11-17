@@ -80,9 +80,13 @@ struct RemoteSearchRepositoryTests {
   /// 통신 오류는 화면에 알릴 이유(`SearchError`)로 바뀌어 나온다.
   @Test(arguments: [
     (HTTPError.network, SearchError.network),
-    (HTTPError.rateLimited, SearchError.rateLimited),
+    (HTTPError.unsuccessfulStatusCode(403), SearchError.rateLimited),
+    (HTTPError.unsuccessfulStatusCode(429), SearchError.rateLimited),
+    (HTTPError.unsuccessfulStatusCode(404), SearchError.unknown),
+    (HTTPError.unsuccessfulStatusCode(422), SearchError.unknown),
+    (HTTPError.unsuccessfulStatusCode(500), SearchError.unknown),
     (HTTPError.invalidRequest, SearchError.unknown),
-    (HTTPError.unknown, SearchError.unknown),
+    (HTTPError.invalidResponse, SearchError.unknown),
   ])
   func searchConvertsHTTPErrorToSearchError(httpError: HTTPError, expected: SearchError) async {
     let repository = RemoteSearchRepository.make(apiClient: StubAPIClient(respond: { _, _ in throw httpError }))
@@ -119,6 +123,26 @@ struct RemoteSearchRepositoryTests {
     let sent = try #require(StubURLProtocol.lastRequest(path: "/search/repositories"))
     #expect(sent.url?.absoluteString == "https://api.github.com/search/repositories?q=c%2B%2B&page=2")
     #expect(sent.value(forHTTPHeaderField: "Accept") == "application/vnd.github+json")
+  }
+
+  /// 실제 전송 구현과 이어 붙였을 때, 한도 헤더가 없어도 403 과 429 는 호출 제한으로 나온다.
+  @Test(arguments: [403, 429])
+  func searchThroughSearchAPIClientTreatsStatusAsRateLimited(statusCode: Int) async {
+    // 경로가 같은 다른 테스트와 응답이 섞이지 않도록, 이 테스트만의 경로로 응답하는 가짜 클라이언트를 거친다.
+    let path = "rate-limit-\(statusCode)"
+    let client = SearchAPIClient(
+      session: StubURLProtocol.session(path: "/\(path)", stub: .response(statusCode: statusCode))
+    )
+    let repository = RemoteSearchRepository.make(
+      apiClient: StubAPIClient(respond: { _, _ in
+        let _: SearchDTO = try await client.get(path, queryItems: [])
+        return Data()
+      })
+    )
+
+    await #expect(throws: SearchError.rateLimited) {
+      try await repository.search("swift", 1)
+    }
   }
 
   /// 취소는 오류로 바꾸지 않고 그대로 넘긴다.
