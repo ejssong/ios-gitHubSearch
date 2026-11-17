@@ -107,19 +107,12 @@ struct SearchResultFeature {
   @Dependency(\.searchRepository) var searchRepository
   @Dependency(\.imagePrefetchRepository) var imagePrefetchRepository
 
-  init() {}
-
   var body: some ReducerOf<Self> {
     Reduce { state, action in
       switch action {
       case .searchRequested, .retryTapped:
-        state.phase = .loading
-        state.repositories = []
-        state.totalCount = 0
-        state.loadedPageCount = 0
-        state.hasNextPage = false
-        state.nextPagePhase = .idle
-        state.webPage = nil
+        // 검색어만 남기고 처음 상태(첫 페이지 로딩 중)로 되돌린다.
+        state = State(keyword: state.keyword)
         // 이전 목록의 썸네일을 미리 받던 것은 더 필요 없다.
         imagePrefetchRepository.cancel()
         // 이전 목록에 붙이려던 다음 페이지 요청은 버린다.
@@ -128,17 +121,14 @@ struct SearchResultFeature {
           firstPage(keyword: state.keyword)
         )
 
-      case let .searchResponse(.success(page)):
-        state.phase = .loaded
-        state.repositories = page.repositories
-        state.totalCount = page.totalCount
-        state.loadedPageCount = 1
-        state.hasNextPage = hasNextPage(after: page, loadedPageCount: 1)
-        prefetchThumbnails(of: page.repositories)
-        return .none
-
-      case let .searchResponse(.failure(error)):
-        state.phase = .failed(error)
+      case let .searchResponse(result):
+        switch result {
+        case let .success(page):
+          state.phase = .loaded
+          append(page, to: &state)
+        case let .failure(error):
+          state.phase = .failed(error)
+        }
         return .none
 
       case let .repositoryAppeared(id):
@@ -154,23 +144,18 @@ struct SearchResultFeature {
         guard case .failed = state.nextPagePhase else { return .none }
         return nextPage(state: &state)
 
-      case let .nextPageResponse(.success(page)):
-        state.nextPagePhase = .idle
-        state.loadedPageCount += 1
-        state.totalCount = page.totalCount
-        state.hasNextPage = hasNextPage(after: page, loadedPageCount: state.loadedPageCount)
-        // 페이지 사이에 순위가 바뀌면 같은 저장소가 다시 올 수 있다.
-        let loadedIDs = Set(state.repositories.map(\.id))
-        let newRepositories = page.repositories.filter { !loadedIDs.contains($0.id) }
-        state.repositories += newRepositories
-        prefetchThumbnails(of: newRepositories)
-        // 새로 붙은 행이 없으면 행이 나타날 일도 없어 멈춘다. 바로 그다음 페이지를 요청한다.
-        guard newRepositories.isEmpty, state.hasNextPage else { return .none }
-        return nextPage(state: &state)
-
-      case let .nextPageResponse(.failure(error)):
-        state.nextPagePhase = .failed(error)
-        return .none
+      case let .nextPageResponse(result):
+        switch result {
+        case let .success(page):
+          state.nextPagePhase = .idle
+          let newRepositories = append(page, to: &state)
+          // 새로 붙은 행이 없으면 행이 나타날 일도 없어 멈춘다. 바로 그다음 페이지를 요청한다.
+          guard newRepositories.isEmpty, state.hasNextPage else { return .none }
+          return nextPage(state: &state)
+        case let .failure(error):
+          state.nextPagePhase = .failed(error)
+          return .none
+        }
 
       case let .repositoryTapped(repository):
         // 보여줄 주소가 없는 항목은 이동하지 않는다.
@@ -190,16 +175,8 @@ struct SearchResultFeature {
 
   private func firstPage(keyword: String) -> Effect<Action> {
     .run { send in
-      do {
-        let page = try await searchRepository.search(keyword, 1)
-        await send(.searchResponse(.success(page)))
-      } catch is CancellationError {
-        // 새 검색이나 화면 닫힘으로 취소된 요청은 결과를 알리지 않는다.
-      } catch let error as SearchError {
-        await send(.searchResponse(.failure(error)))
-      } catch {
-        await send(.searchResponse(.failure(.unknown)))
-      }
+      guard let result = await fetchPage(keyword: keyword, page: 1) else { return }
+      await send(.searchResponse(result))
     }
     .cancellable(id: CancelID.search, cancelInFlight: true)
   }
@@ -208,18 +185,39 @@ struct SearchResultFeature {
   private func nextPage(state: inout State) -> Effect<Action> {
     state.nextPagePhase = .loading
     return .run { [keyword = state.keyword, page = state.loadedPageCount + 1] send in
-      do {
-        let page = try await searchRepository.search(keyword, page)
-        await send(.nextPageResponse(.success(page)))
-      } catch is CancellationError {
-        // 새 검색으로 취소된 요청은 결과를 알리지 않는다.
-      } catch let error as SearchError {
-        await send(.nextPageResponse(.failure(error)))
-      } catch {
-        await send(.nextPageResponse(.failure(.unknown)))
-      }
+      guard let result = await fetchPage(keyword: keyword, page: page) else { return }
+      await send(.nextPageResponse(result))
     }
     .cancellable(id: CancelID.nextPage, cancelInFlight: true)
+  }
+
+  /// 한 페이지를 요청한다. 새 검색이나 화면 닫힘으로 취소된 요청은 결과를 알리지 않도록 `nil` 을 돌려준다.
+  private func fetchPage(
+    keyword: String, page: Int
+  ) async -> Result<RepositorySearchPage, SearchError>? {
+    do {
+      return .success(try await searchRepository.search(keyword, page))
+    } catch is CancellationError {
+      return nil
+    } catch {
+      return .failure(error as? SearchError ?? .unknown)
+    }
+  }
+
+  /// 받은 페이지를 목록 뒤에 붙이고 건수, 불러온 페이지 수, 다음 페이지 여부를 갱신한다.
+  /// 첫 페이지는 빈 목록에 붙이는 것과 같아 첫 페이지와 다음 페이지가 함께 쓴다. 새로 붙은 항목을 돌려준다.
+  /// 첫 페이지는 상태를 처음으로 되돌린 직후에만 요청한다는 전제에 기댄다. 되돌리지 않고 요청하면 이전 목록 뒤에 붙는다.
+  @discardableResult
+  private func append(_ page: RepositorySearchPage, to state: inout State) -> [RepositoryItem] {
+    state.loadedPageCount += 1
+    state.totalCount = page.totalCount
+    state.hasNextPage = hasNextPage(after: page, loadedPageCount: state.loadedPageCount)
+    // 페이지 사이에 순위가 바뀌면 같은 저장소가 다시 올 수 있다.
+    let loadedIDs = Set(state.repositories.map(\.id))
+    let newRepositories = page.repositories.filter { !loadedIDs.contains($0.id) }
+    state.repositories += newRepositories
+    prefetchThumbnails(of: newRepositories)
+    return newRepositories
   }
 
   /// 방금 붙은 항목의 썸네일을 행이 화면에 나타나기 전에 미리 받아 둔다.
