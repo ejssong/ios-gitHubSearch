@@ -44,6 +44,7 @@ struct SearchView: View {
   private var suggestionList: some View {
     List(store.suggestions) { suggestion in
       Button {
+        dismissKeyboard()
         store.send(.suggestionTapped(suggestion))
       } label: {
         HStack {
@@ -67,6 +68,7 @@ struct SearchView: View {
         ForEach(store.recentSearches) { recentSearch in
           HStack(spacing: 12) {
             Button {
+              dismissKeyboard()
               store.send(.recentSearchTapped(recentSearch))
             } label: {
               HStack {
@@ -104,5 +106,17 @@ struct SearchView: View {
       }
     }
     .listStyle(.plain)
+  }
+
+  /// 지금 입력을 받는 곳(이 화면에서는 검색창)의 포커스를 풀어 키보드를 내린다. 검색어는 검색창에 그대로 남는다.
+  ///
+  /// 액션을 보내기 전에 부른다. 조합 중인 글자가 있으면 포커스가 풀릴 때 확정되면서 `queryChanged` 가 오는데,
+  /// 그것이 고른 검색어보다 나중에 오면 방금 연 결과가 닫힌다.
+  /// 키보드의 "검색" 키로 실행하면 시스템이 내려 주지만, 목록의 항목을 눌러 실행할 때는 직접 내려야
+  /// 결과 목록이 가려지지 않는다. `dismissSearch` 는 검색어까지 지우고, `searchFocused` 는 iOS 18 부터라 쓰지 않는다.
+  private func dismissKeyboard() {
+    UIApplication.shared.sendAction(
+      #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+    )
   }
 }
